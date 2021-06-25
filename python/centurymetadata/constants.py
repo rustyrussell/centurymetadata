@@ -9,3 +9,4 @@ DATA: gzip([TITLE\\0CONTENTS\\0]+), padded with 0 bytes to 8056\0
 """
 
 DATA_LENGTH = 8056
+FULL_LENGTH = 8192

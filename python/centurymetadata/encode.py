@@ -2,7 +2,7 @@ from Cryptodome.Cipher import AES
 import coincurve.keys
 import gzip
 import hashlib
-from .key import compute_xonly_pubkey, sign_schnorr
+from .key import compute_xonly_pubkey, sign_schnorr, tweak_add_privkey
 from .constants import preamble, DATA_LENGTH
 
 def compress(pairs):
@@ -29,11 +29,16 @@ def aes(aeskey: bytes, compressed: bytes):
     return encrypter.encrypt(compressed)
 
 
-def get_aeskey(privkey: bytes, pubkey: bytes):
+def get_aeskey(privkey: bytes, pubkey32: bytes):
+    # This inverts if it would make an 03 key... yuck!
+    privkey = tweak_add_privkey(privkey, bytes(32))
     priv = coincurve.keys.PrivateKey(secret=privkey)
-    pub = coincurve.keys.PublicKey(data=pubkey).format()
+    pub = coincurve.keys.PublicKey(data=bytes((0x02,)) + pubkey32).format()
+    print("ECDH {} x {}".format(coincurve.keys.PublicKey.from_secret(privkey).format(), pub))
 
-    return priv.ecdh(pub)
+    ret = priv.ecdh(pub)
+    print("-> {}".format(ret))
+    return ret
 
 
 def sign(writer: bytes, reader: bytes, gen: int, aes: bytes):
@@ -46,6 +51,5 @@ def sign(writer: bytes, reader: bytes, gen: int, aes: bytes):
 
 def encode(secretkey: bytes, readerpubkey: bytes, generation: int, *pairs):
     comp = compress(pairs)
-    # Turn an x-only pubkey into a 33-byte by prepending 0x2.
-    enc = aes(get_aeskey(secretkey, bytes((0x2,)) + readerpubkey), comp)
+    enc = aes(get_aeskey(secretkey, readerpubkey), comp)
     return preamble + sign(secretkey, readerpubkey, generation, enc)

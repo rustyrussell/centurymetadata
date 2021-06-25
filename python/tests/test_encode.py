@@ -46,8 +46,8 @@ def test_get_aeskey():
     secret1 = bytes([random.choice(range(256)) for _ in range(32)])
     secret2 = bytes([random.choice(range(256)) for _ in range(32)])
 
-    pubkey1 = coincurve.keys.PublicKey.from_secret(secret1).format()
-    pubkey2 = coincurve.keys.PublicKey.from_secret(secret2).format()
+    pubkey1, _ = compute_xonly_pubkey(secret1)
+    pubkey2, _ = compute_xonly_pubkey(secret2)
 
     assert get_aeskey(secret1, pubkey2) == get_aeskey(secret2, pubkey1)
 
