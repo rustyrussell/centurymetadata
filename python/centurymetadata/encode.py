@@ -36,11 +36,8 @@ def get_aeskey(privkey: bytes, pubkey32: bytes) -> bytes:
     privkey = tweak_add_privkey(privkey, bytes(32))
     priv = coincurve.keys.PrivateKey(secret=privkey)
     pub = coincurve.keys.PublicKey(data=bytes((0x02,)) + pubkey32).format()
-    print("ECDH {} x {}".format(coincurve.keys.PublicKey.from_secret(privkey).format(), pub))
 
-    ret = priv.ecdh(pub)
-    print("-> {}".format(ret))
-    return ret
+    return priv.ecdh(pub)
 
 
 def sign(writer: bytes, reader: bytes, gen: int, aes: bytes) -> bytes:

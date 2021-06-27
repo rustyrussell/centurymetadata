@@ -3,6 +3,7 @@
 """
 from .encode import compress, aes, get_aeskey, sign, encode, DATA_LENGTH
 from .decode import decompress, unaes, check_sig, decode
+from .key import compute_xonly_pubkey
 
 __all__ = [
     "compress",
@@ -15,4 +16,5 @@ __all__ = [
     "unaes",
     "check_sig",
     "decode",
+    "compute_xonly_pubkey",
 ]
