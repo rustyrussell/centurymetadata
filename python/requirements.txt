@@ -1,0 +1,2 @@
+pycryptodomex >= 3.6
+coincurve >= 13.0.0

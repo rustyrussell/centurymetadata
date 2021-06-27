@@ -23,5 +23,11 @@ check-mypy:
 TAGS:
 	etags `find . -name '*.py'`
 
-upload:
+web/index.html: README.md Makefile
+	echo '<html><head><title>centurymetadata.org: Long-term Bitcoin Metadata Storage</title></head><body>' > $@
+	python3 -m markdown README.md >> $@ || $(RM) $@
+	echo '</body></html>' >> $@
+
+
+upload: web/index.html
 	rsync -av web/ ozlabs.org:/home/rusty/www/centurymetadata.org/htdocs/
