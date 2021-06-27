@@ -1,5 +1,4 @@
 from Cryptodome.Cipher import AES
-import coincurve.keys
 import gzip
 import hashlib
 from .key import compute_xonly_pubkey, verify_schnorr
@@ -7,7 +6,8 @@ from .constants import preamble, DATA_LENGTH, FULL_LENGTH
 from .encode import get_aeskey
 from typing import Tuple, List, Optional
 
-def decompress(comp: bytes):
+
+def decompress(comp: bytes) -> Optional[List[Tuple[str, str]]]:
     """Compress into pairs"""
     uncomp = gzip.decompress(comp)
     # Split by 0 byte
@@ -17,12 +17,12 @@ def decompress(comp: bytes):
         return None
 
     ret = []
-    for i in range(0, len(fields)-1, 2):
-        ret.append((fields[i].decode('utf8'), fields[i+1].decode('utf8')))
+    for i in range(0, len(fields) - 1, 2):
+        ret.append((fields[i].decode('utf8'), fields[i + 1].decode('utf8')))
     return ret
 
 
-def unaes(aeskey: bytes, encrypted: bytes):
+def unaes(aeskey: bytes, encrypted: bytes) -> bytes:
     """Decrypt the compressed data using the given key"""
     assert len(aeskey) == 32
     assert len(encrypted) == DATA_LENGTH
@@ -34,10 +34,10 @@ def unaes(aeskey: bytes, encrypted: bytes):
 def split_parts(after_preamble: bytes) -> Tuple[bytes, bytes, bytes, int, bytes]:
     """Split into sig, writer, reader, gen, aes"""
     return (after_preamble[0:64],
-            after_preamble[64:64+32],
-            after_preamble[64+32:64+32+32],
-            int.from_bytes(after_preamble[64+32+32:64+32+32+8], "big"),
-            after_preamble[64+32+32+8:])
+            after_preamble[64:64 + 32],
+            after_preamble[64 + 32:64 + 32 + 32],
+            int.from_bytes(after_preamble[64 + 32 + 32:64 + 32 + 32 + 8], "big"),
+            after_preamble[64 + 32 + 32 + 8:])
 
 
 def check_sig(after_preamble: bytes) -> bool:
@@ -48,7 +48,18 @@ def check_sig(after_preamble: bytes) -> bool:
     return verify_schnorr(wkey, sig, msg)
 
 
-def decode(secretkey: bytes, cmetadata: bytes) -> Optional[Tuple[int, List[Tuple[str, str]]]]:
+def deconstruct(cmetadata: bytes) -> Optional[Tuple[bytes, bytes, bytes]]:
+    """Deconstructs a cmetadata into reader, writer and post-preamble"""
+    if not cmetadata.startswith(preamble):
+        return None
+    after_preamble = cmetadata[len(preamble):]
+    if len(after_preamble) != FULL_LENGTH:
+        return None
+    _, wkey, rkey, _, _ = split_parts(after_preamble)
+    return wkey, rkey, after_preamble
+
+
+def decode(secretkey: bytes, cmetadata: bytes) -> Optional[List[Tuple[str, str]]]:
     if not cmetadata.startswith(preamble):
         return None
     after_preamble = cmetadata[len(preamble):]
@@ -60,6 +71,6 @@ def decode(secretkey: bytes, cmetadata: bytes) -> Optional[Tuple[int, List[Tuple
     sig, wkey, rkey, gen, aes = split_parts(after_preamble)
     if rkey != expectedkey:
         return None
- 
+
     comp = unaes(get_aeskey(secretkey, wkey), aes)
     return decompress(comp)
