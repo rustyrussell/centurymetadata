@@ -51,10 +51,10 @@ def check_sig(after_preamble: bytes) -> bool:
 def deconstruct(cmetadata: bytes) -> Optional[Tuple[bytes, bytes, bytes]]:
     """Deconstructs a cmetadata into reader, writer and post-preamble"""
     if not cmetadata.startswith(preamble):
-        return None
+        return None, None, None
     after_preamble = cmetadata[len(preamble):]
     if len(after_preamble) != FULL_LENGTH:
-        return None
+        return None, None, None
     _, wkey, rkey, _, _ = split_parts(after_preamble)
     return wkey, rkey, after_preamble
 
