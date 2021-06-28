@@ -48,13 +48,13 @@ def check_sig(after_preamble: bytes) -> bool:
     return verify_schnorr(wkey, sig, msg)
 
 
-def deconstruct(cmetadata: bytes) -> Optional[Tuple[bytes, bytes, int, bytes]]:
+def deconstruct(cmetadata: bytes) -> Tuple[Optional[bytes], bytes, int, bytes]:
     """Deconstructs a cmetadata into reader, writer, generation and post-preamble"""
     if not cmetadata.startswith(preamble):
-        return None, None, None
+        return None, bytes(), 0, bytes()
     after_preamble = cmetadata[len(preamble):]
     if len(after_preamble) != FULL_LENGTH:
-        return None, None, None
+        return None, bytes(), 0, bytes()
     _, wkey, rkey, gen, _ = split_parts(after_preamble)
     return wkey, rkey, gen, after_preamble
 

@@ -75,22 +75,28 @@ if __name__ == "__main__":
                 b = args.check
             else:
                 b = bytes.fromhex(args.check)
-        wbytes, rbytes, gen, after_pre = centurymetadata.deconstruct(b)
-        if wbytes is None:
-            print("Malformed", file=sys.stderr)
-            exit(1)
+        # Handle multiple concatenated entries
+        while True:
+            wbytes, rbytes, gen, after_pre = centurymetadata.deconstruct(b[:centurymetadata.RECORD_LENGTH])
+            if wbytes is None:
+                print("Malformed", file=sys.stderr)
+                exit(1)
 
-        if not centurymetadata.check_sig(after_pre):
-            print("Bad signature", file=sys.stderr)
-            exit(1)
+            if not centurymetadata.check_sig(after_pre):
+                print("Bad signature", file=sys.stderr)
+                exit(1)
 
-        if args.reader and bytes.fromhex(args.reader) != rbytes:
-            print("Bad reader {}".format(rbytes.hex()), file=sys.stderr)
-            exit(1)
+            if args.reader and bytes.fromhex(args.reader) != rbytes:
+                print("Bad reader {}".format(rbytes.hex()), file=sys.stderr)
+                exit(1)
 
-        print("writer: {}".format(wbytes.hex()))
-        print("reader: {}".format(rbytes.hex()))
-        print("generation: {}".format(gen))
+            print("writer: {}".format(wbytes.hex()))
+            print("reader: {}".format(rbytes.hex()))
+            print("generation: {}".format(gen))
+
+            b = b[centurymetadata.RECORD_LENGTH:]
+            if len(b) == 0:
+                break
         exit(0)
     else:
         print("Needs --encode, --decode or --check", file=sys.stderr)
