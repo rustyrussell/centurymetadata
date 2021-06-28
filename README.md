@@ -45,13 +45,13 @@ The types of records accepted are as follows:
 
 * Title: `bitcoin psbt`, Body: base64-encoded PSBT
 * Title: `bitcoin transaction` Body: hex-encoded transaction
-* Title: 1bitcoin miniscript` Body: miniscript string
+* Title: `bitcoin miniscript` Body: miniscript string
 
 ## API
 
 The test API endpoint can be found at [testapi.centurymetadata.org].
 
-### Entry Creation: POST /api/v0/authorize/{WRITER}/{READER}/{AUTHTOKEN}
+### Entry Creation: POST /api/v0/authorize/{READER}/{WRITER}/{AUTHTOKEN}
 
 You need to get an *AUTHTOKEN* for each new entry.  There can only be
 one entry for any *READER*/*WRITER* pair, but once the entry is
