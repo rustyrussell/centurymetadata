@@ -12,6 +12,7 @@ if __name__ == "__main__":
     parser.add_argument("--raw", help="Output raw binary, suppress other output", action="store_true")
     parser.add_argument("--decode", help='hex string to decode (@ means read filename)')
     parser.add_argument("--encode", help='title body pair to encode (@ means read filename)', nargs=2, action="append", default=None)
+    parser.add_argument("--check", help='check signature and print information (@ means read filename)')
     args = parser.parse_args()
 
     if args.reader_secret:
@@ -63,6 +64,34 @@ if __name__ == "__main__":
             sys.stdout.buffer.write(ret)
         else:
             print(ret.hex())
+    elif args.check:
+        if args.check.startswith('@'):
+            if args.raw:
+                b = open(args.check[1:], "rb").read()
+            else:
+                b = open(args.check[1:], "rt").read().encode('utf8')
+        else:
+            if args.raw:
+                b = args.check
+            else:
+                b = bytes.fromhex(args.check)
+        wbytes, rbytes, gen, after_pre = centurymetadata.deconstruct(b)
+        if wbytes is None:
+            print("Malformed", file=sys.stderr)
+            exit(1)
+
+        if not centurymetadata.check_sig(after_pre):
+            print("Bad signature", file=sys.stderr)
+            exit(1)
+
+        if args.reader and bytes.fromhex(args.reader) != rbytes:
+            print("Bad reader {}".format(rbytes.hex()), file=sys.stderr)
+            exit(1)
+
+        print("writer: {}".format(wbytes.hex()))
+        print("reader: {}".format(rbytes.hex()))
+        print("generation: {}".format(gen))
+        exit(0)
     else:
-        print("Needs --encode or --decode", file=sys.stderr)
+        print("Needs --encode, --decode or --check", file=sys.stderr)
         exit(1)
