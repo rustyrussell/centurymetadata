@@ -49,7 +49,7 @@ The types of records accepted are as follows:
 
 ## API
 
-The test API endpoint can be found at [testapi.centurymetadata.org](testapi.centurymetadata.org).
+The test API endpoint can be found at [testapi.centurymetadata.org](https://testapi.centurymetadata.org/api/v0).
 
 ### Entry Creation: POST /api/v0/authorize/{READER}/{WRITER}/{AUTHTOKEN}
 
@@ -106,4 +106,4 @@ related class of problems for someone to solve.
 
 Advice, suggestions, kudos, blame: please send to
 [me](mailto:rusty@rustcorp.com.au) or other contact as listed on 
-["my](personal).
+[my personal site](https://rusty.ozlabs.org).
