@@ -5,7 +5,7 @@
 *Century Metadata* is a project to provide storage for small amounts
 of auxiliary data.  As an example, this is useful for Bitcoin wallets,
 which can be restored from 12 seed words, but cannot know about more
-complex funds without additional data.  On restore, a would attempt to
+complex funds without additional data.  On restore, your wallet would attempt to
 fetch this data from [centurymetadata.org](centurymetadata.org) or a mirror.
 
 We are currently in alpha, seeking feedback.
