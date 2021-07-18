@@ -1,0 +1,61 @@
+#! /bin/bash
+# read -d is a bashism...
+
+if [ $# != 3 ]; then
+    echo Usage: web\|markdown varfile srcfile >&2
+    exit 1
+fi
+type="$1"
+varfile="$2"
+srcfile="$3"
+
+url()
+{
+    name="$1"
+    if [ $# = 1 ]; then
+	location=$1
+    else
+	location=$2
+    fi
+    if [ "$type" = web ]; then
+	echo "<a href=\"$location\">$name</a>"
+    else
+	echo "[$name]($location)"
+    fi
+}
+
+literal()
+{
+    if [ "$type" = web ]; then
+	echo "<code>$@</code>"
+    else
+	echo "\`$@\`"
+    fi
+}
+
+bold()
+{
+    if [ "$type" = web ]; then
+	echo "<b>$@</b>"
+    else
+	echo "*$@*"
+    fi
+}
+
+# read -d '' returns 1 
+. ./$varfile
+
+set -e
+
+# Make sure each var is used!
+VARS=`sed -n 's/^\([A-Za-z_0-9]*\)=.*/\1/p' < $varfile`
+for v in $VARS; do
+    if ! grep -wq "$v" "$srcfile"; then
+	echo "$v" not used in "$srcfile" >&2
+	exit 1
+    fi
+done
+
+(echo 'cat <<EOF'; cat "$srcfile"; echo EOF) > /tmp/$$.sh
+. /tmp/$$.sh
+rm -f /tmp/$$.sh

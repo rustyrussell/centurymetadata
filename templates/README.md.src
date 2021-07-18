@@ -1,0 +1,69 @@
+# centurymetadata.org: Long-term Bitcoin Metadata Storage
+
+## About
+
+$INTRO_PARA1
+
+$INTRO_PARA2
+
+## File Format
+
+$FILE_FORMAT_PARA1
+
+\`\`\`
+$FILE_FORMAT_LITERAL
+\`\`\`
+
+$FILE_FORMAT_PARA2
+
+## Usage with Bitcoin
+
+$BITCOIN_PARA1
+
+$BITCOIN_PARA2
+
+* $BITCOIN_TYPE1
+* $BITCOIN_TYPE2
+* $BITCOIN_TYPE3
+
+## API
+
+$API_PARA1
+
+### $API_AUTHORIZE
+
+$API_AUTHORIZE_DESC
+
+### $API_UPDATE
+
+$API_UPDATE_DESC
+
+### $API_INDEX
+
+$API_INDEX_DESC_PARA1
+
+$API_INDEX_DESC_PARA2
+
+### $API_FETCHBUNDLE
+
+$API_FETCHBUNDLE_DESC
+
+## Tools
+
+$TOOLS_PARA1
+
+## Roadmap
+
+$ROADMAP_PARA1
+
+## How Much?
+
+$HOW_MUCH_PARA1
+
+## Who?
+
+$WHO_PARA1
+
+## Feedback
+
+$FEEDBACK_PARA1

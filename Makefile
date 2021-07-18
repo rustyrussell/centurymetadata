@@ -4,7 +4,7 @@ PYTHONFILES := $(shell find python -path python/centurymetadata/key.py -o \( -na
 POSSIBLE_PYTEST_NAMES=pytest-3 pytest3 pytest
 PYTEST := $(shell for p in $(POSSIBLE_PYTEST_NAMES); do if type $$p > /dev/null; then echo $$p; break; fi done)
 
-default: check-source check
+default: README.md web/index.html
 
 check-pytest-found:
 	@if [ -z "$(PYTEST)" ]; then echo "Cannot find any pytest: $(POSSIBLE_PYTEST_NAMES)" >&2; exit 1; fi
@@ -23,10 +23,11 @@ check-mypy:
 TAGS:
 	etags `find . -name '*.py'`
 
-web/index.html: README.md Makefile
-	echo '<html><head><title>centurymetadata.org: Long-term Bitcoin Metadata Storage</title></head><body>' > $@
-	python3 -m markdown README.md >> $@ || $(RM) $@
-	echo '</body></html>' >> $@
+web/index.html: templates/index.html.src templates/convert-src vars Makefile
+	templates/convert-src web vars $< > $@
+
+README.md: templates/README.md.src templates/convert-src vars Makefile
+	templates/convert-src markdown vars $< > $@
 
 
 upload: web/index.html

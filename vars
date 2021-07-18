@@ -1,0 +1,92 @@
+# Wow, Rusty, what a terrible templating system!
+
+INTRO_PARA1="$(bold Century Metadata) is a project to provide storage for small amounts
+of auxiliary data.  As an example, this is useful for Bitcoin wallets,
+which can be restored from 12 seed words, but cannot know about more
+complex funds without additional data.  On restore, a would attempt to
+fetch this data from $(url centurymetadata.org) or a mirror."
+
+INTRO_PARA2="We are currently in alpha, seeking feedback."
+
+FILE_FORMAT_PARA1="The file format is designed to be self-explanatory and use standard,
+long-lived primitives as much as possible.  Every file contains a
+preamble, followed by 8192 bytes.  The preamble describes the data
+format which follows:"
+
+FILE_FORMAT_LITERAL="centurymetadata v0\0SIG[64]|WRITER[32]|READER[32]|GEN[8]|AES[8056]
+
+SIG: BIP-340 SHA256(TAG|TAG|WRITER|READER|GEN|AES)
+WRITER, READER: secp256k1 x-only keys
+TAG: SHA256(\"centurymetadata\"[15])
+AESKEY: SHA256(0x02 | Diffie-Hellman of WRITER,READER)
+AES: CTR mode (starting 0, nonce 0) using AESKEY of DATA
+DATA: gzip([TITLE\\0CONTENTS\\0]+), padded with 0 bytes to 8056\0"
+
+FILE_FORMAT_PARA2="The data itself is a series of NUL-separated title, contents pairs.
+Obviously this cannot be validated on the production server, but the
+test server (which only allows known keys) will check the file is
+compliant."
+
+BITCOIN_PARA1="The BIP 32 path recommended for centurymetadata is $(literal 0x44315441\')
+($(literal DATA)), with $(literal /0\') as the writer key,
+$(literal /1\') as the reader key.  Of course, others can also send data
+to your reader key, but you know that the record from your own writer
+key can be trusted. "
+
+BITCOIN_PARA2="The types of records accepted are as follows:"
+
+BITCOIN_TYPE1="Title: $(literal bitcoin psbt), Body: base64-encoded PSBT"
+
+BITCOIN_TYPE2="Title: $(literal bitcoin transaction) Body: hex-encoded transaction"
+
+BITCOIN_TYPE3="Title: $(literal bitcoin miniscript) Body: miniscript string"
+
+API_PARA1="The test API endpoint can be found at $(url testapi.centurymetadata.org https://testapi.centurymetadata.org)."
+
+API_AUTHORIZE="Entry Creation: POST /api/v0/authorize/{READER}/{WRITER}/{AUTHTOKEN}"
+
+API_AUTHORIZE_DESC="You need to get an $(bold AUTHTOKEN) for each new entry.  There can only be
+one entry for any $(bold READER)/$(bold WRITER) pair, but once the entry is
+authorized it can be updated by the writer at any time."
+
+API_UPDATE="Entry Update: POST /api/v0/update"
+
+API_UPDATE_DESC="Updates a previously authorized writer/reader entry.  The
+$(literal Content-Type: application/x-centurymetadata) should contain a valid
+centurymetadata file."
+
+API_INDEX="Entries Index: GET /api/v0/index"
+
+API_INDEX_DESC_PARA1="This queries the bundles of entries which can be retrieved: we only
+allow retreival of entire bundles.  Bundles are ordered by increasing
+$(bold READER), then $(bold WRITER) values."
+
+API_INDEX_DESC_PARA2="Returns a JSON object with member $(literal bundles) containing an
+array of objects.  Each object contains $(literal first_reader),
+$(literal first_writer), $(literal last_reader), $(literal last_writer)."
+
+API_FETCHBUNDLE="Retrieiving Entries: GET /api/v0/fetchbundle/{READERSTART}/{WRITERSTART}"
+
+API_FETCHBUNDLE_DESC="This returns the given bundle, as $(literal Content-Type: application/x-centurymetadata), consisting of multiple back-to-back
+century metadata files."
+
+TOOLS_PARA1="There is an experimental Python package to encode and decode
+centurymetadata files in the $(url "GitHub repository" https://github.com/rustyrussell/centurymetadata)"
+
+ROADMAP_PARA1="I'm committed to maintaining this service for at least 5 years
+as a trial.  After that if it's proven useful I would like to
+spin it into a real not-for-profit foundation to provide as much
+certainty on continuity as possible."
+
+HOW_MUCH_PARA1="There will never be a charge for ratelimited updates or retrievals;
+the idea is to charge a small cost for the creation of new entries to
+cover ongoing running costs.  We may also accept donations."
+
+WHO_PARA1="Rusty Russell started this as a side project; my original problem was
+how to give someone timelocked bitcoin, but realized there was a large
+related class of problems for someone to solve."
+
+FEEDBACK_PARA1="Advice, suggestions, kudos, blame: please send to
+$(url me mailto:rusty@rustcorp.com.au) or other contact as listed on 
+$(url "my personal site" https://rusty.ozlabs.org)."
+
