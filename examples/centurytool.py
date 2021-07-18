@@ -1,6 +1,8 @@
 #! /usr/bin/python3
 import centurymetadata
 import argparse
+import json
+import requests
 import sys
 
 if __name__ == "__main__":
@@ -13,6 +15,8 @@ if __name__ == "__main__":
     parser.add_argument("--decode", help='hex string to decode (@ means read filename)')
     parser.add_argument("--encode", help='title body pair to encode (@ means read filename)', nargs=2, action="append", default=None)
     parser.add_argument("--check", help='check signature and print information (@ means read filename)')
+    parser.add_argument("--fetch", help='fetch the record for the given reader (and optional writer)', action="store_true")
+    parser.add_argument("--server", help='server to use', default='https://testapi.centurymetadata.org')
     args = parser.parse_args()
 
     if args.reader_secret:
@@ -98,6 +102,30 @@ if __name__ == "__main__":
             if len(b) == 0:
                 break
         exit(0)
+    elif args.fetch:
+        if args.reader is None:
+            print("Needs --reader or --reader-secret", file=sys.stderr)
+            exit(1)
+
+        r = requests.get(args.server + '/api/v0/index')
+        indices = json.loads(r.text)
+
+        reader = bytes.fromhex(args.reader)
+        for a in indices['bundles']:
+            rstart = bytes.fromhex(a['first_reader'])
+            rend = bytes.fromhex(a['last_reader'])
+            if reader >= rstart and reader <= rend:
+                r = requests.get(args.server + '/api/v0/fetchbundle/{}/{}'
+                                 .format(a['first_reader'], a['first_writer']))
+                if r.headers['Content-Type'] != 'application/x-centurymetadata':
+                    print("Server returned bad content type {}"
+                          .format(r.headers['Content-Type']), file=sys.stderr)
+                    exit(1)
+                if args.raw:
+                    sys.stdout.buffer.write(r.content)
+                else:
+                    print(r.content.hex())
+        exit(0)
     else:
-        print("Needs --encode, --decode or --check", file=sys.stderr)
+        print("Needs --encode, --decode, --check or --fetch", file=sys.stderr)
         exit(1)
