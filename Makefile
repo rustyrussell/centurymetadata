@@ -30,5 +30,6 @@ README.md: templates/README.md.src templates/convert-src vars Makefile
 	templates/convert-src markdown vars $< > $@
 
 
-upload: web/index.html
+upload: web/index.html python/centurymetadata/server/server.py
 	rsync -av web/ ozlabs.org:/home/rusty/www/centurymetadata.org/htdocs/
+	rsync python/centurymetadata/server/server.py ozlabs.org:www/centurymetadata.org/cgi/
