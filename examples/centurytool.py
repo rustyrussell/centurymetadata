@@ -1,5 +1,6 @@
 #! /usr/bin/python3
 import centurymetadata
+import secp256k1
 import argparse
 import json
 import requests
@@ -8,7 +9,7 @@ import sys
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--writer-secret", help="Writer secret key (64 hex digits)")
-    parser.add_argument("--reader", help="Reader public key (64 hex digits)")
+    parser.add_argument("--reader", help="Reader public key (66 hex digits)")
     parser.add_argument("--reader-secret", help="Reader secret key (64 hex digits)")
     parser.add_argument("--generation", type=int, help="Generation number", default=0)
     parser.add_argument("--raw", help="Output raw binary, suppress other output", action="store_true")
@@ -20,8 +21,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.reader_secret:
-        reader, _ = centurymetadata.compute_xonly_pubkey(bytes.fromhex(args.reader_secret))
-        args.reader = reader.hex()
+        args.reader = secp256k1.PrivateKey(bytes.fromhex(args.reader_secret)).pubkey.serialize().hex()
         if not args.raw:
             print("Converted reader secret to reader pubkey {}".format(args.reader))
 
@@ -39,7 +39,8 @@ if __name__ == "__main__":
                 decode = args.decode
             else:
                 decode = bytes.fromhex(args.decode)
-        ret = centurymetadata.decode(bytes.fromhex(args.reader_secret), decode)
+        reader_seckey = secp256k1.PrivateKey(bytes.fromhex(args.reader_secret))
+        ret = centurymetadata.decode(reader_seckey, decode)
         if ret is None:
             print("decode failed", file=sys.stderr)
             exit(1)
@@ -56,12 +57,12 @@ if __name__ == "__main__":
             print("Needs --writer-secret", file=sys.stderr)
             exit(1)
 
-        writer, _ = centurymetadata.compute_xonly_pubkey(bytes.fromhex(args.writer_secret))
+        writer = secp256k1.PrivateKey(bytes.fromhex(args.writer_secret))
         if not args.raw:
-            print("Writer pubkey: {}".format(writer.hex()))
+            print("Writer pubkey: {}".format(writer.pubkey.serialize().hex()))
+        reader = secp256k1.PublicKey(bytes.fromhex(args.reader), raw=True)
 
-        ret = centurymetadata.encode(bytes.fromhex(args.writer_secret),
-                                     bytes.fromhex(args.reader),
+        ret = centurymetadata.encode(writer, reader,
                                      args.generation,
                                      *args.encode)
         if args.raw:
@@ -81,21 +82,22 @@ if __name__ == "__main__":
                 b = bytes.fromhex(args.check)
         # Handle multiple concatenated entries
         while True:
-            wbytes, rbytes, gen, after_pre = centurymetadata.deconstruct(b[:centurymetadata.RECORD_LENGTH])
-            if wbytes is None:
-                print("Malformed", file=sys.stderr)
+            try:
+                wkey, rkey, gen, after_pre = centurymetadata.deconstruct(b[:centurymetadata.RECORD_LENGTH])
+            except ValueError as e:
+                print("Malformed ({})".format(e), file=sys.stderr)
                 exit(1)
 
             if not centurymetadata.check_sig(after_pre):
                 print("Bad signature", file=sys.stderr)
                 exit(1)
 
-            if args.reader and bytes.fromhex(args.reader) != rbytes:
-                print("Bad reader {}".format(rbytes.hex()), file=sys.stderr)
+            if args.reader and bytes.fromhex(args.reader) != rkey.serialize():
+                print("Bad reader {}".format(rkey.serialize().hex()), file=sys.stderr)
                 exit(1)
 
-            print("writer: {}".format(wbytes.hex()))
-            print("reader: {}".format(rbytes.hex()))
+            print("writer: {}".format(wkey.serialize().hex()))
+            print("reader: {}".format(rkey.serialize().hex()))
             print("generation: {}".format(gen))
 
             b = b[centurymetadata.RECORD_LENGTH:]

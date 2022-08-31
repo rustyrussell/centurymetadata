@@ -3,6 +3,7 @@ import cgi
 import os
 import sys
 import centurymetadata
+from secp256k1 import PublicKey
 from typing import Optional, Any
 
 TOPLEVEL = "/api/v0/"
@@ -35,33 +36,31 @@ def success(msg: str = 'Success', ctype: str = 'text/plain') -> None:
     exit(0)
 
 
-def decode_key(hexkey: str) -> Optional[bytes]:
+def decode_key(hexkey: str) -> Optional[PublicKey]:
     try:
-        b = bytes.fromhex(hexkey)
+        k = PublicKey(bytes.fromhex(hexkey), raw=True)
     except ValueError:
         return None
-    if len(b) != 32:
-        return None
-    return b
+    return k
 
 
-def storage_dir(rbytes: bytes, wbytes: bytes) -> str:
-    return os.path.join(BASEDIR, rbytes.hex() + "+" + wbytes.hex())
+def storage_dir(rkey: PublicKey, wkey: PublicKey) -> str:
+    return os.path.join(BASEDIR, rkey.serialize().hex() + "+" + wkey.serialize().hex())
 
 
 def authorize(reader: str, writer: str, authtoken: str) -> None:
     # We use a dummy authtoken for testapi
     if authtoken != '0' * 64:
         return bad_403("AUTHTOKEN must be all-zero for testapi")
-    wbytes = decode_key(writer)
-    rbytes = decode_key(reader)
-    if wbytes is None:
-        return bad_400("writer must be 32 hex bytes")
-    if rbytes is None:
-        return bad_400("reader must be 32 hex bytes")
+    wkey = decode_key(writer)
+    rkey = decode_key(reader)
+    if wkey is None:
+        return bad_400("writer must be valid compressed pubkey")
+    if rkey is None:
+        return bad_400("reader must be valid compressed pubkey")
 
     try:
-        os.mkdir(storage_dir(rbytes, wbytes))
+        os.mkdir(storage_dir(rkey, wkey))
     except FileExistsError:
         bad_400("READER {} WRITER {} already authorized"
                 .format(writer, reader))
@@ -79,8 +78,8 @@ def update() -> None:
         bytelen -= len(r)
         b += r
     # FIXME: Better feedback here!
-    wbytes, rbytes, gen, after_pre = centurymetadata.deconstruct(b)
-    if wbytes is None:
+    wkey, rkey, gen, after_pre = centurymetadata.deconstruct(b)
+    if wkey is None:
         return bad_400("Malformed x-centurymetadata")
 
     if not centurymetadata.check_sig(after_pre):
@@ -88,12 +87,12 @@ def update() -> None:
 
     # OK, signature checks out.
     try:
-        f = open(os.path.join(storage_dir(rbytes, wbytes), gen.to_bytes(8, "big").hex()), "xb")
+        f = open(os.path.join(storage_dir(rkey, wkey), gen.to_bytes(8, "big").hex()), "xb")
     except FileExistsError:
         return bad_400("Generation {} already exists".format(gen))
     except FileNotFoundError:
         return bad_403("Writer {} reader {} not authorized; try authorize?"
-                       .format(wbytes.hex(), rbytes.hex()))
+                       .format(wkey.serialize().hex(), rkey.serialize().hex()))
 
     f.write(b)
     f.close()
