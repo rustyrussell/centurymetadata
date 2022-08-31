@@ -86,7 +86,7 @@ WHO_PARA1="Rusty Russell started this as a side project; my original problem was
 how to give someone timelocked bitcoin, but realized there was a large
 related class of problems for someone to solve."
 
-FEEDBACK_PARA1="Advice, suggestions, kudos, blame: please send to
-$(url me mailto:rusty@rustcorp.com.au) or other contact as listed on 
+FEEDBACK_PARA1="Advice, suggestions, kudos, blame: you can reach us on $(url Twitter https://twitter.com/centurymetadata), or send
+$(url "me email" mailto:rusty@rustcorp.com.au) or other contact as listed on 
 $(url "my personal site" https://rusty.ozlabs.org)."
 

@@ -104,6 +104,6 @@ related class of problems for someone to solve.
 
 ## Feedback
 
-Advice, suggestions, kudos, blame: please send to
-[me](mailto:rusty@rustcorp.com.au) or other contact as listed on 
+Advice, suggestions, kudos, blame: you can reach us on [Twitter](https://twitter.com/centurymetadata), or send
+[me email](mailto:rusty@rustcorp.com.au) or other contact as listed on 
 [my personal site](https://rusty.ozlabs.org).
