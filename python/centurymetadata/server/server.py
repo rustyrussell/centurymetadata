@@ -1,6 +1,7 @@
 #! /usr/bin/python3
 import cgi
 import os
+import json
 import sys
 import centurymetadata
 from secp256k1 import PublicKey
@@ -77,10 +78,7 @@ def update() -> None:
         r = sys.stdin.buffer.read(bytelen)
         bytelen -= len(r)
         b += r
-    # FIXME: Better feedback here!
     wkey, rkey, gen, after_pre = centurymetadata.deconstruct(b)
-    if wkey is None:
-        return bad_400("Malformed x-centurymetadata")
 
     if not centurymetadata.check_sig(after_pre):
         return bad_400("Bad signature on x-centurymetadata")
@@ -99,34 +97,38 @@ def update() -> None:
     success()
 
 
-def index() -> None:
-    """FIXME: don't generate this every time, but cache it daily"""
-    entries = sorted(os.listdir(BASEDIR))
-    first_reader, first_writer = entries[0].split('+')
-    last_reader, last_writer = entries[-1].split('+')
+def fetchdepth() -> None:
+    """Get the length of prefix we're supposed to use for fetchbundle"""
+    with open(os.path.join(BASEDIR, "maxdepth"), "r") as depthf:
+        maxdepth = int(depthf.read())
+
     success(ctype='application/json',
-            msg='{{"bundles": [{{"first_reader":"{}","first_writer":"{}","last_reader":"{}","last_writer":"{}"}}]}}'.format(first_reader, first_writer, last_reader, last_writer))
+            msg='{"depth":' + str(maxdepth) + '}')
 
 
-def fetchbundle(reader: str, writer: str) -> None:
-    """FIXME: make sure entries come from current or prev index"""
-    entries = sorted(os.listdir(BASEDIR))
+def fetchbundle(prefix: str) -> None:
+    if any(c not in "0123456789abcdef" for c in prefix):
+        return bad_400("prefix must be lowercase hex characters!")
+
+    with open(os.path.join(BASEDIR, "maxdepth"), "r") as depthf:
+        maxdepth = int(depthf.read())
+    with open(os.path.join(BASEDIR, "mindepth"), "r") as depthf:
+        mindepth = int(depthf.read())
+
+    # For transitions, we allow a range, but really we expect maxdepth.
+    if len(prefix) < mindepth or len(prefix) > maxdepth:
+        return bad_400("prefix must be {} characters: see fetchdepth!"
+                       .format(maxdepth))
+
     print("Content-Type: application/x-centurymetadata\n")
     sys.stdout.flush()
+    entries = sorted([d for d in os.listdir(BASEDIR) if d.startswith(prefix)])
 
-    rbytes = bytes.fromhex(reader)
-    wbytes = bytes.fromhex(writer)
     for f in entries:
-        r, w = f.split('+')
-        rb = bytes.fromhex(r)
-        wb = bytes.fromhex(w)
-        if rb < rbytes or rb == rbytes and wb < wbytes:
-            continue
-
-        gens = sorted(os.listdir(storage_dir(rb, wb)))
+        gens = sorted(os.listdir(os.path.join(BASEDIR, f)))
         # Might be authorized, but never updated, otherwise send last.
         if len(gens) != 0:
-            with open(os.path.join(storage_dir(rb, wb), gens[-1]), "rb") as serv:
+            with open(os.path.join(BASEDIR, f, gens[-1]), "rb") as serv:
                 sys.stdout.buffer.write(serv.read())
 
     sys.stdout.buffer.flush()
@@ -134,8 +136,8 @@ def fetchbundle(reader: str, writer: str) -> None:
 
 requests = {'authorize': ("POST", authorize, 3),
             'update': ("POST", update, 0),
-            'index': ("GET", index, 0),
-            'fetchbundle': ("GET", fetchbundle, 2)}
+            'fetchdepth': ("GET", fetchdepth, 0),
+            'fetchbundle': ("GET", fetchbundle, 1)}
 
 req = os.getenv("PATH_INFO")
 reqmethod = os.getenv("REQUEST_METHOD")

@@ -43,12 +43,12 @@ print(enc.hex())
 
 ## Uploading an Encoded Record
 
-Now we have our reader (4d4b6cd1...) and writer (1b84c5...) keys, we
+Now we have our reader (024d4b6cd1...) and writer (031b84c5...) keys, we
 can authorize the server to accept updates.  The AUTHTOKEN for the
 test server is 64 zeros, so we simply do:
 
 ```
-$ curl -d '' http://testapi.centurymetadata.org/api/v0/authorize/4d4b6cd1361032ca9bd2aeb9d900aa4d45d9ead80ac9423374c451a7254d0766/1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f/0000000000000000000000000000000000000000000000000000000000000000
+$ curl -d '' http://testapi.centurymetadata.org/api/v0/authorize/024d4b6cd1361032ca9bd2aeb9d900aa4d45d9ead80ac9423374c451a7254d0766/031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f/0000000000000000000000000000000000000000000000000000000000000000
 Success
 ```
 
@@ -78,17 +78,17 @@ Success
 
 ## Retreiving a Record
 
-To improve privacy, you can only fetch bundles of records: you just need to figure out which bundle you want.
+To improve privacy, you can only fetch bundles of records: you just need to figure out which bundle you are in.  Bundles are sorted by hex prefix, so you need to know the prefix length:
 
 ```
-$ curl http://testapi.centurymetadata.org/api/v0/index
-{"bundles": [{"first_reader":4d4b6cd1361032ca9bd2aeb9d900aa4d45d9ead80ac9423374c451a7254d0766,"first_writer":1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f,"last_reader":4d4b6cd1361032ca9bd2aeb9d900aa4d45d9ead80ac9423374c451a7254d0766,"last_writer":1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f}]}
+$ curl http://testapi.centurymetadata.org/api/v0/fetchdepth
+{"depth":2}
 ```
 
-We then use the appropriate `first_reader` and `first_writer` of the bundle to do the request:
+In this case, depth is `2` (it can be 1 to 32) so the first two hex digits identify the bundle, in our case `02`:
 
 ```
-curl http://testapi.centurymetadata.org/api/v0/fetchbundle/4d4b6cd1361032ca9bd2aeb9d900aa4d45d9ead80ac9423374c451a7254d0766/1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f > /tmp/encdatas
+curl http://testapi.centurymetadata.org/api/v0/fetchbundle/4d > /tmp/encdatas
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 100  8558    0  8558    0     0  18483      0 --:--:-- --:--:-- --:--:-- 18443

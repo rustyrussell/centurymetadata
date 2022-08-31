@@ -122,21 +122,17 @@ centurymetadata file.
 
 	<div class="row">
 	  <div class="col-sm">
-	    <h3>Entries Index: GET /api/v0/index</h3>
+	    <h3>Entries Depth: GET /api/v0/fetchdepth</h3>
 	    <p>
-	      This queries the bundles of entries which can be retrieved: we only
-allow retreival of entire bundles.  Bundles are ordered by increasing
-<b>READER</b>, then <b>WRITER</b> values.
+	      Since we bundle records by reader prefix (e.g. all readers starting with <code>42a3</code> might be bundled together), you need to know how long the prefix is: it starts as an empty prefix and increases by one hex digit as we grow, so bundles are always a reasonable size.
 	    </p>
 	    <p>
-	      Returns a JSON object with member <code>bundles</code> containing an
-array of objects.  Each object contains <code>first_reader</code>,
-<code>first_writer</code>, <code>last_reader</code>, <code>last_writer</code>.
+	      Returns a JSON object with member <code>depth</code> containing how many hex digits of reader to use for <code>fetchbundle</code>.
 	    </p>
 	  </div>
 	
 	  <div class="col-sm">
-	    <h3>Retrieiving Entries: GET /api/v0/fetchbundle/{READERSTART}/{WRITERSTART}</h3>
+	    <h3>Retrieiving Entries: GET /api/v0/fetchbundle/{READERPREFIX}</h3>
 	    This returns the given bundle, as <code>Content-Type: application/x-centurymetadata</code>, consisting of multiple back-to-back
 century metadata files.
 	  </div>

@@ -59,17 +59,16 @@ def check_sig(after_preamble: bytes) -> bool:
     return wkey.schnorr_verify(after_preamble[64:], sig, bip340tag)
 
 
-def deconstruct(cmetadata: bytes) -> Tuple[Optional[PublicKey], PublicKey, int, bytes]:
+def deconstruct(cmetadata: bytes) -> Tuple[PublicKey, PublicKey, int, bytes]:
     """Deconstructs a cmetadata into reader, writer, generation and post-preamble"""
     if not cmetadata.startswith(preamble):
-        return None, PublicKey(), 0, bytes()
+        raise ValueError("Incorrect preamble")
     after_preamble = cmetadata[len(preamble):]
     if len(after_preamble) != FULL_LENGTH:
-        return None, PublicKey(), 0, bytes()
-    try:
-        _, wkey, rkey, gen, _ = split_parts(after_preamble)
-    except ValueError:
-        return None, PublicKey(), 0, bytes()
+        raise ValueError("Expected {} bytes after preamble, got {}"
+                         .format(FULL_LENGTH, len(after_preamble)))
+
+    _, wkey, rkey, gen, _ = split_parts(after_preamble)
     return wkey, rkey, gen, after_preamble
 
 

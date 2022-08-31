@@ -63,17 +63,13 @@ Updates a previously authorized writer/reader entry.  The
 `Content-Type: application/x-centurymetadata` should contain a valid
 centurymetadata file.
 
-### Entries Index: GET /api/v0/index
+### Entries Depth: GET /api/v0/fetchdepth
 
-This queries the bundles of entries which can be retrieved: we only
-allow retreival of entire bundles.  Bundles are ordered by increasing
-*READER*, then *WRITER* values.
+Since we bundle records by reader prefix (e.g. all readers starting with `42a3` might be bundled together), you need to know how long the prefix is: it starts as an empty prefix and increases by one hex digit as we grow, so bundles are always a reasonable size.
 
-Returns a JSON object with member `bundles` containing an
-array of objects.  Each object contains `first_reader`,
-`first_writer`, `last_reader`, `last_writer`.
+Returns a JSON object with member `depth` containing how many hex digits of reader to use for `fetchbundle`.
 
-### Retrieiving Entries: GET /api/v0/fetchbundle/{READERSTART}/{WRITERSTART}
+### Retrieiving Entries: GET /api/v0/fetchbundle/{READERPREFIX}
 
 This returns the given bundle, as `Content-Type: application/x-centurymetadata`, consisting of multiple back-to-back
 century metadata files.

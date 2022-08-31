@@ -109,24 +109,24 @@ if __name__ == "__main__":
             print("Needs --reader or --reader-secret", file=sys.stderr)
             exit(1)
 
-        r = requests.get(args.server + '/api/v0/index')
-        indices = json.loads(r.text)
+        depthreq = requests.get(args.server + '/api/v0/fetchdepth')
+        depth = int(json.loads(depthreq.text)['depth'])
 
-        reader = bytes.fromhex(args.reader)
-        for a in indices['bundles']:
-            rstart = bytes.fromhex(a['first_reader'])
-            rend = bytes.fromhex(a['last_reader'])
-            if reader >= rstart and reader <= rend:
-                r = requests.get(args.server + '/api/v0/fetchbundle/{}/{}'
-                                 .format(a['first_reader'], a['first_writer']))
-                if r.headers['Content-Type'] != 'application/x-centurymetadata':
-                    print("Server returned bad content type {}"
-                          .format(r.headers['Content-Type']), file=sys.stderr)
-                    exit(1)
-                if args.raw:
-                    sys.stdout.buffer.write(r.content)
-                else:
-                    print(r.content.hex())
+        if depth > 16:
+            print("Server returned unbelievable depth {}"
+                  .format(depthreq.text), file=sys.stderr)
+            exit(1)
+
+        r = requests.get(args.server + '/api/v0/fetchbundle/{}'
+                         .format(args.reader[:depth]))
+        if r.headers['Content-Type'] != 'application/x-centurymetadata':
+            print("Server returned bad content type {}"
+                  .format(r.headers['Content-Type']), file=sys.stderr)
+            exit(1)
+        if args.raw:
+            sys.stdout.buffer.write(r.content)
+        else:
+            print(r.content.hex())
         exit(0)
     else:
         print("Needs --encode, --decode, --check or --fetch", file=sys.stderr)

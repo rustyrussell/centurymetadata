@@ -56,17 +56,13 @@ API_UPDATE_DESC="Updates a previously authorized writer/reader entry.  The
 $(literal Content-Type: application/x-centurymetadata) should contain a valid
 centurymetadata file."
 
-API_INDEX="Entries Index: GET /api/v0/index"
+API_INDEX="Entries Depth: GET /api/v0/fetchdepth"
 
-API_INDEX_DESC_PARA1="This queries the bundles of entries which can be retrieved: we only
-allow retreival of entire bundles.  Bundles are ordered by increasing
-$(bold READER), then $(bold WRITER) values."
+API_INDEX_DESC_PARA1="Since we bundle records by reader prefix (e.g. all readers starting with $(literal 42a3) might be bundled together), you need to know how long the prefix is: it starts as an empty prefix and increases by one hex digit as we grow, so bundles are always a reasonable size."
 
-API_INDEX_DESC_PARA2="Returns a JSON object with member $(literal bundles) containing an
-array of objects.  Each object contains $(literal first_reader),
-$(literal first_writer), $(literal last_reader), $(literal last_writer)."
+API_INDEX_DESC_PARA2="Returns a JSON object with member $(literal depth) containing how many hex digits of reader to use for $(literal fetchbundle)."
 
-API_FETCHBUNDLE="Retrieiving Entries: GET /api/v0/fetchbundle/{READERSTART}/{WRITERSTART}"
+API_FETCHBUNDLE="Retrieiving Entries: GET /api/v0/fetchbundle/{READERPREFIX}"
 
 API_FETCHBUNDLE_DESC="This returns the given bundle, as $(literal Content-Type: application/x-centurymetadata), consisting of multiple back-to-back
 century metadata files."
