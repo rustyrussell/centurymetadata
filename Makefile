@@ -1,6 +1,6 @@
 #! /usr/bin/make
 
-PYTHONFILES := $(shell find python -path python/centurymetadata/key.py -o \( -name '*.py' -print \) )
+PYTHONFILES := $(shell find python -name '*.py' -print)
 POSSIBLE_PYTEST_NAMES=pytest-3 pytest3 pytest
 PYTEST := $(shell for p in $(POSSIBLE_PYTEST_NAMES); do if type $$p > /dev/null; then echo $$p; break; fi done)
 

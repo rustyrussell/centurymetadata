@@ -1,8 +1,7 @@
 from Cryptodome.Cipher import AES
 import gzip
-import hashlib
-from .key import compute_xonly_pubkey, verify_schnorr
-from .constants import preamble, DATA_LENGTH, FULL_LENGTH
+from secp256k1 import PrivateKey, PublicKey
+from .constants import bip340tag, preamble, DATA_LENGTH, FULL_LENGTH
 from .encode import get_aeskey
 from typing import Tuple, List, Optional
 
@@ -31,35 +30,50 @@ def unaes(aeskey: bytes, encrypted: bytes) -> bytes:
     return decrypter.decrypt(encrypted)
 
 
-def split_parts(after_preamble: bytes) -> Tuple[bytes, bytes, bytes, int, bytes]:
+def split_parts(after_preamble: bytes) -> Tuple[bytes, PublicKey, PublicKey, int, bytes]:
     """Split into sig, writer, reader, gen, aes"""
-    return (after_preamble[0:64],
-            after_preamble[64:64 + 32],
-            after_preamble[64 + 32:64 + 32 + 32],
-            int.from_bytes(after_preamble[64 + 32 + 32:64 + 32 + 32 + 8], "big"),
-            after_preamble[64 + 32 + 32 + 8:])
+    try:
+        wkey = PublicKey(after_preamble[64:64 + 33], raw=True)
+    except Exception:
+        # FIXME: secp256k1 should use a decent exception here!
+        raise ValueError("Invalid wkey {}".format(after_preamble[64:64 + 33].hex()))
+
+    try:
+        rkey = PublicKey(after_preamble[64 + 33:64 + 33 + 33], raw=True)
+    except Exception:
+        # FIXME: secp256k1 should use a decent exception here!
+        raise ValueError("Invalid rkey {}".format(after_preamble[64 + 33:64 + 33 + 33].hex()))
+    return (after_preamble[0:64], wkey, rkey,
+            int.from_bytes(after_preamble[64 + 33 + 33:64 + 33 + 33 + 8], "big"),
+            after_preamble[64 + 33 + 33 + 8:])
 
 
 def check_sig(after_preamble: bytes) -> bool:
     assert len(after_preamble) == FULL_LENGTH
-    sig, wkey, _, _, _ = split_parts(after_preamble)
-    tag = hashlib.sha256(bytes("centurymetadata", encoding="utf8")).digest()
-    msg = hashlib.sha256(tag + tag + after_preamble[64:]).digest()
-    return verify_schnorr(wkey, sig, msg)
+
+    try:
+        sig, wkey, _, _, _ = split_parts(after_preamble)
+    except ValueError:
+        return False
+
+    return wkey.schnorr_verify(after_preamble[64:], sig, bip340tag)
 
 
-def deconstruct(cmetadata: bytes) -> Tuple[Optional[bytes], bytes, int, bytes]:
+def deconstruct(cmetadata: bytes) -> Tuple[Optional[PublicKey], PublicKey, int, bytes]:
     """Deconstructs a cmetadata into reader, writer, generation and post-preamble"""
     if not cmetadata.startswith(preamble):
-        return None, bytes(), 0, bytes()
+        return None, PublicKey(), 0, bytes()
     after_preamble = cmetadata[len(preamble):]
     if len(after_preamble) != FULL_LENGTH:
-        return None, bytes(), 0, bytes()
-    _, wkey, rkey, gen, _ = split_parts(after_preamble)
+        return None, PublicKey(), 0, bytes()
+    try:
+        _, wkey, rkey, gen, _ = split_parts(after_preamble)
+    except ValueError:
+        return None, PublicKey(), 0, bytes()
     return wkey, rkey, gen, after_preamble
 
 
-def decode(secretkey: bytes, cmetadata: bytes) -> Optional[List[Tuple[str, str]]]:
+def decode(secretkey: PrivateKey, cmetadata: bytes) -> Optional[List[Tuple[str, str]]]:
     if not cmetadata.startswith(preamble):
         return None
     after_preamble = cmetadata[len(preamble):]
@@ -67,9 +81,9 @@ def decode(secretkey: bytes, cmetadata: bytes) -> Optional[List[Tuple[str, str]]
         return None
     if not check_sig(after_preamble):
         return None
-    expectedkey, _ = compute_xonly_pubkey(secretkey)
     sig, wkey, rkey, gen, aes = split_parts(after_preamble)
-    if rkey != expectedkey:
+    # FIXME: secp256k1 != doesn't work like you expect!
+    if rkey.serialize() != secretkey.pubkey.serialize():
         return None
 
     comp = unaes(get_aeskey(secretkey, wkey), aes)

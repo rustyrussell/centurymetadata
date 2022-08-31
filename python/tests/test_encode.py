@@ -1,8 +1,8 @@
 #! /usr/bin/env python3
 from Cryptodome.Cipher import AES
-from centurymetadata import compress, aes, get_aeskey, sign, encode, DATA_LENGTH
-from centurymetadata.key import compute_xonly_pubkey
+from centurymetadata import compress, aes, get_aeskey, contents, encode, DATA_LENGTH
 from centurymetadata.constants import preamble
+from secp256k1 import PrivateKey
 import gzip
 import pytest
 import random
@@ -43,42 +43,42 @@ def test_aes() -> None:
 
 def test_get_aeskey() -> None:
     # random.randbytes only in 3.9+
-    secret1 = bytes([random.choice(range(256)) for _ in range(32)])
-    secret2 = bytes([random.choice(range(256)) for _ in range(32)])
+    secret1 = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
+    secret2 = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
 
-    pubkey1, _ = compute_xonly_pubkey(secret1)
-    pubkey2, _ = compute_xonly_pubkey(secret2)
+    pubkey1 = secret1.pubkey
+    pubkey2 = secret2.pubkey
 
     assert get_aeskey(secret1, pubkey2) == get_aeskey(secret2, pubkey1)
 
 
-def test_sign() -> None:
-    secret1 = bytes([random.choice(range(256)) for _ in range(32)])
-    secret2 = bytes([random.choice(range(256)) for _ in range(32)])
+def test_contents() -> None:
+    secret1 = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
+    secret2 = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
 
-    pubkey1, _ = compute_xonly_pubkey(secret1)
-    pubkey2, _ = compute_xonly_pubkey(secret2)
+    pubkey1 = secret1.pubkey
+    pubkey2 = secret2.pubkey
 
     data = bytes((2,) * DATA_LENGTH)
 
-    ret = sign(secret1, pubkey2, 1, data)
-    assert len(ret) == 8192
+    ret = contents(pubkey1, pubkey2, 1, data)
+
+    assert len(ret) == 8192 - 64
     # Writer
-    assert ret[64:64 + 32] == pubkey1
+    assert ret[0:33] == pubkey1.serialize()
     # Reader
-    assert ret[64 + 32:64 + 32 + 32] == pubkey2
+    assert ret[33:33 + 33] == pubkey2.serialize()
     # Generation
-    assert ret[64 + 32 + 32:64 + 32 + 32 + 8] == bytes((0,) * 7 + (1,))
+    assert ret[33 + 33:33 + 33 + 8] == bytes((0,) * 7 + (1,))
     # AES
-    assert ret[64 + 32 + 32 + 8:] == data
+    assert ret[33 + 33 + 8:] == data
 
 
 def test_encode_complete() -> None:
-    secret1 = bytes([random.choice(range(256)) for _ in range(32)])
-    secret2 = bytes([random.choice(range(256)) for _ in range(32)])
+    secret1 = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
+    secret2 = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
 
-    pubkey1, _ = compute_xonly_pubkey(secret1)
-    pubkey2, _ = compute_xonly_pubkey(secret2)
+    pubkey2 = secret2.pubkey
 
     complete = encode(secret1, pubkey2, 0, ['a', 'aaaaaa'], ['b', 'bbbbbb'])
     assert len(complete) == len(preamble) + 8192

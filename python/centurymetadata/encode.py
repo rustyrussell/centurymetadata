@@ -1,14 +1,12 @@
 from Cryptodome.Cipher import AES
-import coincurve.keys
 import gzip
-import hashlib
-from .key import compute_xonly_pubkey, sign_schnorr, tweak_add_privkey
-from .constants import preamble, DATA_LENGTH
+from secp256k1 import PrivateKey, PublicKey
+from .constants import bip340tag, preamble, DATA_LENGTH
 from typing import Iterable, Tuple, Any
 
 
 def compress(pairs: Iterable[Tuple[str, str]]) -> bytes:
-    """Compress the pairs, padding with zeroes to 8056 bytes, raising an exception if the result is > 8056"""
+    """Compress the pairs, padding with zeroes to DATA_LENGTH, raising an exception if the result is too large"""
     raw = bytes()
     for title, contents in pairs:
         raw += bytes(title, encoding="utf8")
@@ -31,24 +29,20 @@ def aes(aeskey: bytes, compressed: bytes) -> bytes:
     return encrypter.encrypt(compressed)
 
 
-def get_aeskey(privkey: bytes, pubkey32: bytes) -> bytes:
-    # This inverts if it would make an 03 key... yuck!
-    privkey = tweak_add_privkey(privkey, bytes(32))
-    priv = coincurve.keys.PrivateKey(secret=privkey)
-    pub = coincurve.keys.PublicKey(data=bytes((0x02,)) + pubkey32).format()
-
-    return priv.ecdh(pub)
+def get_aeskey(privkey: PrivateKey, pubkey: PublicKey) -> bytes:
+    return pubkey.ecdh(privkey.private_key)
 
 
-def sign(writer: bytes, reader: bytes, gen: int, aes: bytes) -> bytes:
-    tag = hashlib.sha256(bytes("centurymetadata", encoding="utf8")).digest()
-    writer_pub, _ = compute_xonly_pubkey(writer)
-    contents = writer_pub + reader + gen.to_bytes(8, "big") + aes
-    msg = hashlib.sha256(tag + tag + contents).digest()
-    return sign_schnorr(writer, msg) + contents
+def contents(writer: PublicKey, reader: PublicKey, gen: int, aes: bytes) -> bytes:
+    return writer.serialize() + reader.serialize() + gen.to_bytes(8, "big") + aes
 
 
-def encode(secretkey: bytes, readerpubkey: bytes, generation: int, *pairs: Any) -> bytes:
+def sign(writer: PrivateKey, contents: bytes) -> bytes:
+    return writer.schnorr_sign(contents, bip340tag)
+
+
+def encode(secretkey: PrivateKey, readerpubkey: PublicKey, generation: int, *pairs: Any) -> bytes:
     comp = compress(pairs)
     enc = aes(get_aeskey(secretkey, readerpubkey), comp)
-    return preamble + sign(secretkey, readerpubkey, generation, enc)
+    cont = contents(secretkey.pubkey, readerpubkey, generation, enc)
+    return preamble + sign(secretkey, cont) + cont
