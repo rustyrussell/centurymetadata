@@ -13,14 +13,15 @@ long-lived primitives as much as possible.  Every file contains a
 preamble, followed by 8192 bytes.  The preamble describes the data
 format which follows:"
 
-FILE_FORMAT_LITERAL="centurymetadata v0\0SIG[64]|WRITER[33]|READER[33]|GEN[8]|AES[8054]
+FILE_FORMAT_HEADER="centurymetadata v0\0"
+FILE_FORMAT_LITERAL_POSTHDR="SIG[64]|WRITER[33]|READER[33]|GEN[8]|AES[8054]
 
 SIG: BIP-340 SHA256(TAG|TAG|WRITER|READER|GEN|AES)
 WRITER, READER: secp256k1 x-only keys
 TAG: SHA256(\"centurymetadata\"[15])
 AESKEY: SHA256(EC Diffie-Hellman of WRITER,READER)
 AES: CTR mode (starting 0, nonce 0) using AESKEY of DATA
-DATA: gzip([TITLE\\0CONTENTS\\0]+), padded with 0 bytes to 8054\0"
+DATA: gzip($(unraw [TITLE\\0CONTENTS\\0]+)), padded with 0 bytes to 8054\0"
 
 FILE_FORMAT_PARA2="The data itself is a series of NUL-separated title, contents pairs.
 Obviously this cannot be validated on the production server, but the

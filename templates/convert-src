@@ -2,7 +2,7 @@
 # read -d is a bashism...
 
 if [ $# != 3 ]; then
-    echo Usage: web\|markdown varfile srcfile >&2
+    echo Usage: web\|markdown\|raw varfile srcfile >&2
     exit 1
 fi
 type="$1"
@@ -42,6 +42,15 @@ bold()
     fi
 }
 
+unraw()
+{
+    if [ "$type" = raw ]; then
+	echo "$@" | sed 's/\\/\\\\/g'
+    else
+	echo "$@"
+    fi
+}
+
 # read -d '' returns 1 
 . ./$varfile
 
@@ -50,7 +59,7 @@ set -e
 # Make sure each var is used!
 VARS=`sed -n 's/^\([A-Za-z_0-9]*\)=.*/\1/p' < $varfile`
 for v in $VARS; do
-    if ! grep -wq "$v" "$srcfile"; then
+    if ! grep -wq "$v" "$srcfile" && [ "$type" != "raw" ]; then
 	echo "$v" not used in "$srcfile" >&2
 	exit 1
     fi
