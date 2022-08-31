@@ -3,10 +3,11 @@ import cgi
 import os
 import sys
 import centurymetadata
-from typing import Optional
+from typing import Optional, Any
 
 TOPLEVEL = "/api/v0/"
 BASEDIR = "/home/rusty/data/centurymetadata/"
+
 
 def bad_404() -> None:
     print('Status: 404\n\n<html><head></head><body>Invalid URL, see <a href="https://github.com/rustyrussell/centurymetadata/tree/master/examples/EXAMPLES.md">EXAMPLES.md</a></body></html>')
@@ -28,7 +29,7 @@ def bad_403(extra: str) -> None:
     exit(0)
 
 
-def success(msg='Success', ctype='text/plain') -> None:
+def success(msg: str = 'Success', ctype: str = 'text/plain') -> None:
     print("Content-Type: {}\n".format(ctype))
     print(msg)
     exit(0)
@@ -71,7 +72,7 @@ def update() -> None:
     content = os.getenv("CONTENT_TYPE")
     if content != 'application/x-centurymetadata':
         return bad_400("update must be Content-Type: application/x-centurymetadata")
-    bytelen = int(os.getenv("CONTENT_LENGTH"))
+    bytelen = int(os.getenv("CONTENT_LENGTH") or 0)
     b = bytes()
     while bytelen > 0:
         r = sys.stdin.buffer.read(bytelen)
@@ -126,8 +127,8 @@ def fetchbundle(reader: str, writer: str) -> None:
         gens = sorted(os.listdir(storage_dir(rb, wb)))
         # Might be authorized, but never updated, otherwise send last.
         if len(gens) != 0:
-            with open(os.path.join(storage_dir(rb, wb), gens[-1]), "rb") as f:
-                sys.stdout.buffer.write(f.read())
+            with open(os.path.join(storage_dir(rb, wb), gens[-1]), "rb") as serv:
+                sys.stdout.buffer.write(serv.read())
 
     sys.stdout.buffer.flush()
 
@@ -150,6 +151,7 @@ reqparts = req.split('/')[3:]
 if reqparts[0] not in requests:
     bad_404()
 
+handler: Any
 method, handler, numargs = requests[reqparts[0]]
 if reqmethod != method:
     bad_405()

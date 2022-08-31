@@ -4,10 +4,10 @@ import gzip
 import hashlib
 from .key import compute_xonly_pubkey, sign_schnorr, tweak_add_privkey
 from .constants import preamble, DATA_LENGTH
-from typing import List, Tuple, Any
+from typing import Iterable, Tuple, Any
 
 
-def compress(pairs: List[Tuple[str, str]]) -> bytes:
+def compress(pairs: Iterable[Tuple[str, str]]) -> bytes:
     """Compress the pairs, padding with zeroes to 8056 bytes, raising an exception if the result is > 8056"""
     raw = bytes()
     for title, contents in pairs:
