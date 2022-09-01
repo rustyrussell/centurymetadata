@@ -88,7 +88,7 @@ $ curl http://testapi.centurymetadata.org/api/v0/fetchdepth
 In this case, depth is `2` (it can be 1 to 32) so the first two hex digits identify the bundle, in our case `02`:
 
 ```
-curl http://testapi.centurymetadata.org/api/v0/fetchbundle/4d > /tmp/encdatas
+curl http://testapi.centurymetadata.org/api/v0/fetchbundle/02 > /tmp/encdatas
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 100  8558    0  8558    0     0  18483      0 --:--:-- --:--:-- --:--:-- 18443
