@@ -38,3 +38,16 @@ python/centurymetadata/constants.py: templates/constants.py.src vars Makefile
 upload: web/index.html python/centurymetadata/server/server.py
 	rsync -av web/ ozlabs.org:/home/rusty/www/centurymetadata.org/htdocs/
 	rsync python/centurymetadata/server/server.py ozlabs.org:www/centurymetadata.org/cgi/
+
+run-local: 
+	@echo "Starting local server..."
+	@python3 -m http.server 8000 --directory web/
+
+run-api:
+	@echo "Starting api server..."
+	cd python/centurymetadata/server && python3 -m http.server --cgi 8001
+
+run-servers:
+	@echo "Starting local and api servers..."
+	@make run-local &
+	@make run-api

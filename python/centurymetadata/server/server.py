@@ -8,8 +8,7 @@ from secp256k1 import PublicKey
 from typing import Optional, Any
 
 TOPLEVEL = "/api/v0/"
-BASEDIR = "/home/rusty/data/centurymetadata/"
-
+BASEDIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
 def bad_404() -> None:
     print('Status: 404\n\n<html><head></head><body>Invalid URL, see <a href="https://github.com/rustyrussell/centurymetadata/tree/master/examples/EXAMPLES.md">EXAMPLES.md</a></body></html>')
