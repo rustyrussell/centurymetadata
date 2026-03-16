@@ -1,7 +1,9 @@
 from Cryptodome.Cipher import AES
 import gzip
+import hashlib
+from kyber_py.kyber import Kyber1024
 from secp256k1 import PrivateKey, PublicKey
-from .constants import bip340tag, preamble, DATA_LENGTH
+from .constants import bip340tag, preamble, DATA_LENGTH, KYBER_CT_LENGTH
 from typing import Iterable, Tuple, Any
 
 
@@ -29,20 +31,41 @@ def aes(aeskey: bytes, compressed: bytes) -> bytes:
     return encrypter.encrypt(compressed)
 
 
-def get_aeskey(privkey: PrivateKey, pubkey: PublicKey) -> bytes:
+def get_ecdh_secret(privkey: PrivateKey, pubkey: PublicKey) -> bytes:
+    """Compute ECDH shared secret"""
     return pubkey.ecdh(privkey.private_key)
 
 
-def contents(writer: PublicKey, reader: PublicKey, gen: int, aes: bytes) -> bytes:
-    return writer.serialize() + reader.serialize() + gen.to_bytes(8, "big") + aes
+def get_reader_id(reader_secp_pubkey: PublicKey, reader_kyber_pubkey: bytes) -> bytes:
+    """Compute READER_ID = SHA256(secp_pubkey | kyber_pubkey)"""
+    return hashlib.sha256(reader_secp_pubkey.serialize() + reader_kyber_pubkey).digest()
 
 
-def sign(writer: PrivateKey, contents: bytes) -> bytes:
-    return writer.schnorr_sign(contents, bip340tag)
+def get_aeskey(ecdh_secret: bytes, kyber_secret: bytes) -> bytes:
+    """Derive AES key: SHA256(ECDH_SECRET | KYBER_SECRET)"""
+    return hashlib.sha256(ecdh_secret + kyber_secret).digest()
 
 
-def encode(secretkey: PrivateKey, readerpubkey: PublicKey, generation: int, *pairs: Any) -> bytes:
+def contents(writer: PublicKey, reader_id: bytes, gen: int, kyber_ct: bytes, aes_data: bytes) -> bytes:
+    assert len(reader_id) == 32
+    assert len(kyber_ct) == KYBER_CT_LENGTH
+    return writer.serialize() + reader_id + gen.to_bytes(8, "big") + kyber_ct + aes_data
+
+
+def sign(writer: PrivateKey, cont: bytes) -> bytes:
+    return writer.schnorr_sign(cont, bip340tag)
+
+
+def encode(writer_privkey: PrivateKey,
+           reader_secp_pubkey: PublicKey,
+           reader_kyber_pubkey: bytes,
+           generation: int,
+           *pairs: Any) -> bytes:
     comp = compress(pairs)
-    enc = aes(get_aeskey(secretkey, readerpubkey), comp)
-    cont = contents(secretkey.pubkey, readerpubkey, generation, enc)
-    return preamble + sign(secretkey, cont) + cont
+    ecdh_secret = get_ecdh_secret(writer_privkey, reader_secp_pubkey)
+    kyber_secret, kyber_ct = Kyber1024.encaps(reader_kyber_pubkey)
+    aeskey = get_aeskey(ecdh_secret, kyber_secret)
+    encrypted = aes(aeskey, comp)
+    reader_id = get_reader_id(reader_secp_pubkey, reader_kyber_pubkey)
+    cont = contents(writer_privkey.pubkey, reader_id, generation, kyber_ct, encrypted)
+    return preamble + sign(writer_privkey, cont) + cont

@@ -1,9 +1,11 @@
 #! /usr/bin/env python3
 from Cryptodome.Cipher import AES
-from centurymetadata import compress, aes, get_aeskey, contents, encode, DATA_LENGTH
+from kyber_py.kyber import Kyber1024
+from centurymetadata import compress, aes, get_ecdh_secret, get_reader_id, get_aeskey, contents, encode, DATA_LENGTH, KYBER_CT_LENGTH
 from centurymetadata.constants import preamble
 from secp256k1 import PrivateKey
 import gzip
+import hashlib
 import pytest
 import random
 import string
@@ -41,45 +43,54 @@ def test_aes() -> None:
     assert decrypter.decrypt(enc) == data
 
 
-def test_get_aeskey() -> None:
-    # random.randbytes only in 3.9+
+def test_get_ecdh_secret() -> None:
+    # ECDH is symmetric: DH(a, B) == DH(b, A)
     secret1 = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
     secret2 = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
 
-    pubkey1 = secret1.pubkey
-    pubkey2 = secret2.pubkey
+    assert get_ecdh_secret(secret1, secret2.pubkey) == get_ecdh_secret(secret2, secret1.pubkey)
 
-    assert get_aeskey(secret1, pubkey2) == get_aeskey(secret2, pubkey1)
+
+def test_get_reader_id() -> None:
+    secret = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
+    kyber_pk, _ = Kyber1024.keygen()
+
+    reader_id = get_reader_id(secret.pubkey, kyber_pk)
+    assert len(reader_id) == 32
+    assert reader_id == hashlib.sha256(secret.pubkey.serialize() + kyber_pk).digest()
+
+
+def test_get_aeskey() -> None:
+    ecdh_secret = bytes([random.choice(range(256)) for _ in range(32)])
+    kyber_secret = bytes([random.choice(range(256)) for _ in range(32)])
+
+    aeskey = get_aeskey(ecdh_secret, kyber_secret)
+    assert len(aeskey) == 32
+    assert aeskey == hashlib.sha256(ecdh_secret + kyber_secret).digest()
 
 
 def test_contents() -> None:
     secret1 = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
-    secret2 = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
-
-    pubkey1 = secret1.pubkey
-    pubkey2 = secret2.pubkey
-
+    reader_id = bytes([random.choice(range(256)) for _ in range(32)])
+    kyber_ct = bytes([random.choice(range(256)) for _ in range(KYBER_CT_LENGTH)])
     data = bytes((2,) * DATA_LENGTH)
 
-    ret = contents(pubkey1, pubkey2, 1, data)
+    ret = contents(secret1.pubkey, reader_id, 1, kyber_ct, data)
 
     assert len(ret) == 8192 - 64
-    # Writer
-    assert ret[0:33] == pubkey1.serialize()
-    # Reader
-    assert ret[33:33 + 33] == pubkey2.serialize()
-    # Generation
-    assert ret[33 + 33:33 + 33 + 8] == bytes((0,) * 7 + (1,))
-    # AES
-    assert ret[33 + 33 + 8:] == data
+    assert ret[0:33] == secret1.pubkey.serialize()
+    assert ret[33:33 + 32] == reader_id
+    assert ret[33 + 32:33 + 32 + 8] == bytes((0,) * 7 + (1,))
+    assert ret[33 + 32 + 8:33 + 32 + 8 + KYBER_CT_LENGTH] == kyber_ct
+    assert ret[33 + 32 + 8 + KYBER_CT_LENGTH:] == data
 
 
 def test_encode_complete() -> None:
-    secret1 = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
-    secret2 = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
+    writer_privkey = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
+    reader_secp_privkey = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
+    reader_kyber_pubkey, _ = Kyber1024.keygen()
 
-    pubkey2 = secret2.pubkey
-
-    complete = encode(secret1, pubkey2, 0, ['a', 'aaaaaa'], ['b', 'bbbbbb'])
+    complete = encode(writer_privkey, reader_secp_privkey.pubkey, reader_kyber_pubkey, 0,
+                      ['a', 'aaaaaa'], ['b', 'bbbbbb'])
     assert len(complete) == len(preamble) + 8192
     assert complete.startswith(preamble)

@@ -1,13 +1,14 @@
 from Cryptodome.Cipher import AES
 import gzip
+from kyber_py.kyber import Kyber1024
 from secp256k1 import PrivateKey, PublicKey
-from .constants import bip340tag, preamble, DATA_LENGTH, FULL_LENGTH
-from .encode import get_aeskey
+from .constants import bip340tag, preamble, DATA_LENGTH, FULL_LENGTH, KYBER_CT_LENGTH
+from .encode import get_ecdh_secret, get_aeskey
 from typing import Tuple, List, Optional
 
 
 def decompress(comp: bytes) -> Optional[List[Tuple[str, str]]]:
-    """Compress into pairs"""
+    """Decompress into pairs"""
     uncomp = gzip.decompress(comp)
     # Split by 0 byte
     fields = uncomp.split(sep=bytes(1))
@@ -30,37 +31,37 @@ def unaes(aeskey: bytes, encrypted: bytes) -> bytes:
     return decrypter.decrypt(encrypted)
 
 
-def split_parts(after_preamble: bytes) -> Tuple[bytes, PublicKey, PublicKey, int, bytes]:
-    """Split into sig, writer, reader, gen, aes"""
+def split_parts(after_preamble: bytes) -> Tuple[bytes, PublicKey, bytes, int, bytes, bytes]:
+    """Split into sig, writer, reader_id, gen, kyber_ct, aes"""
     try:
         wkey = PublicKey(after_preamble[64:64 + 33], raw=True)
     except Exception:
         # FIXME: secp256k1 should use a decent exception here!
         raise ValueError("Invalid wkey {}".format(after_preamble[64:64 + 33].hex()))
 
-    try:
-        rkey = PublicKey(after_preamble[64 + 33:64 + 33 + 33], raw=True)
-    except Exception:
-        # FIXME: secp256k1 should use a decent exception here!
-        raise ValueError("Invalid rkey {}".format(after_preamble[64 + 33:64 + 33 + 33].hex()))
-    return (after_preamble[0:64], wkey, rkey,
-            int.from_bytes(after_preamble[64 + 33 + 33:64 + 33 + 33 + 8], "big"),
-            after_preamble[64 + 33 + 33 + 8:])
+    reader_id = after_preamble[64 + 33:64 + 33 + 32]
+    gen_off = 64 + 33 + 32
+    gen = int.from_bytes(after_preamble[gen_off:gen_off + 8], "big")
+    kyber_ct_off = gen_off + 8
+    kyber_ct = after_preamble[kyber_ct_off:kyber_ct_off + KYBER_CT_LENGTH]
+    aes_data = after_preamble[kyber_ct_off + KYBER_CT_LENGTH:]
+
+    return (after_preamble[0:64], wkey, reader_id, gen, kyber_ct, aes_data)
 
 
 def check_sig(after_preamble: bytes) -> bool:
     assert len(after_preamble) == FULL_LENGTH
 
     try:
-        sig, wkey, _, _, _ = split_parts(after_preamble)
+        sig, wkey, _, _, _, _ = split_parts(after_preamble)
     except ValueError:
         return False
 
     return wkey.schnorr_verify(after_preamble[64:], sig, bip340tag)
 
 
-def deconstruct(cmetadata: bytes) -> Tuple[PublicKey, PublicKey, int, bytes]:
-    """Deconstructs a cmetadata into reader, writer, generation and post-preamble"""
+def deconstruct(cmetadata: bytes) -> Tuple[PublicKey, bytes, int, bytes]:
+    """Deconstructs a cmetadata into writer, reader_id, generation and post-preamble"""
     if not cmetadata.startswith(preamble):
         raise ValueError("Incorrect preamble")
     after_preamble = cmetadata[len(preamble):]
@@ -68,11 +69,13 @@ def deconstruct(cmetadata: bytes) -> Tuple[PublicKey, PublicKey, int, bytes]:
         raise ValueError("Expected {} bytes after preamble, got {}"
                          .format(FULL_LENGTH, len(after_preamble)))
 
-    _, wkey, rkey, gen, _ = split_parts(after_preamble)
-    return wkey, rkey, gen, after_preamble
+    _, wkey, reader_id, gen, _, _ = split_parts(after_preamble)
+    return wkey, reader_id, gen, after_preamble
 
 
-def decode(secretkey: PrivateKey, cmetadata: bytes) -> Optional[List[Tuple[str, str]]]:
+def decode(reader_secp_privkey: PrivateKey,
+           reader_kyber_privkey: bytes,
+           cmetadata: bytes) -> Optional[List[Tuple[str, str]]]:
     if not cmetadata.startswith(preamble):
         return None
     after_preamble = cmetadata[len(preamble):]
@@ -80,10 +83,11 @@ def decode(secretkey: PrivateKey, cmetadata: bytes) -> Optional[List[Tuple[str, 
         return None
     if not check_sig(after_preamble):
         return None
-    sig, wkey, rkey, gen, aes = split_parts(after_preamble)
-    # FIXME: secp256k1 != doesn't work like you expect!
-    if rkey.serialize() != secretkey.pubkey.serialize():
-        return None
+    sig, wkey, reader_id, gen, kyber_ct, encrypted = split_parts(after_preamble)
 
-    comp = unaes(get_aeskey(secretkey, wkey), aes)
+    ecdh_secret = get_ecdh_secret(reader_secp_privkey, wkey)
+    kyber_secret = Kyber1024.decaps(reader_kyber_privkey, kyber_ct)
+    aeskey = get_aeskey(ecdh_secret, kyber_secret)
+
+    comp = unaes(aeskey, encrypted)
     return decompress(comp)
