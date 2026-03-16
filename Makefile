@@ -1,16 +1,10 @@
 #! /usr/bin/make
 
 PYTHONFILES := $(shell find python -name '*.py' -print)
-POSSIBLE_PYTEST_NAMES=pytest-3 pytest3 pytest
-PYTEST := $(shell for p in $(POSSIBLE_PYTEST_NAMES); do if type $$p > /dev/null; then echo $$p; break; fi done)
-
 default: README.md python/README.md web/index.html python/centurymetadata/constants.py
 
-check-pytest-found:
-	@if [ -z "$(PYTEST)" ]; then echo "Cannot find any pytest: $(POSSIBLE_PYTEST_NAMES)" >&2; exit 1; fi
-
-check: check-pytest-found
-	cd python && $(PYTEST) $(PYTEST_ARGS)
+check:
+	cd python && uv run pytest $(PYTEST_ARGS)
 
 check-source: check-flake8 check-mypy
 
