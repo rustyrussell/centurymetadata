@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 from Cryptodome.Cipher import AES
 from kyber_py.kyber import Kyber1024
-from centurymetadata import compress, aes, get_ecdh_secret, get_reader_id, get_aeskey, contents, encode, DATA_LENGTH, KYBER_CT_LENGTH
+from centurymetadata import compress, aes, derive_kyber_keypair, get_ecdh_secret, get_reader_id, get_aeskey, contents, encode, DATA_LENGTH, KYBER_CT_LENGTH
 from centurymetadata.constants import preamble
 from secp256k1 import PrivateKey
 import gzip
@@ -83,6 +83,34 @@ def test_contents() -> None:
     assert ret[33 + 32:33 + 32 + 8] == bytes((0,) * 7 + (1,))
     assert ret[33 + 32 + 8:33 + 32 + 8 + KYBER_CT_LENGTH] == kyber_ct
     assert ret[33 + 32 + 8 + KYBER_CT_LENGTH:] == data
+
+
+def test_derive_kyber_keypair() -> None:
+    privkey = bytes([random.choice(range(256)) for _ in range(32)])
+
+    # Deterministic: same input gives same output
+    pk1, sk1 = derive_kyber_keypair(privkey)
+    pk2, sk2 = derive_kyber_keypair(privkey)
+    assert pk1 == pk2
+    assert sk1 == sk2
+
+    # Correct sizes
+    assert len(pk1) == 1568
+    assert len(sk1) == 3168
+
+    # Different inputs give different outputs
+    privkey2 = bytes([random.choice(range(256)) for _ in range(32)])
+    pk3, _ = derive_kyber_keypair(privkey2)
+    assert pk1 != pk3
+
+    # Derived keypair works for encaps/decaps
+    key, ct = Kyber1024.encaps(pk1)
+    assert Kyber1024.decaps(sk1, ct) == key
+
+    # Leaves Kyber1024 random_bytes intact (not the seeded version)
+    pk4, _ = Kyber1024.keygen()
+    pk5, _ = Kyber1024.keygen()
+    assert pk4 != pk5  # would fail if DRBG were left seeded
 
 
 def test_encode_complete() -> None:

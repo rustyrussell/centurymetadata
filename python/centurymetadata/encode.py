@@ -4,7 +4,7 @@ import hashlib
 from kyber_py.kyber import Kyber1024
 from secp256k1 import PrivateKey, PublicKey
 from .constants import bip340tag, preamble, DATA_LENGTH, KYBER_CT_LENGTH
-from typing import Iterable, Tuple, Any
+from typing import Callable, Iterable, Tuple, Any
 
 
 def compress(pairs: Iterable[Tuple[str, str]]) -> bytes:
@@ -29,6 +29,41 @@ def aes(aeskey: bytes, compressed: bytes) -> bytes:
     encrypter = AES.new(key=aeskey, mode=AES.MODE_CTR, nonce=bytes(8))
 
     return encrypter.encrypt(compressed)
+
+
+def bip340_tagged_hash(tag: str, data: bytes) -> bytes:
+    """BIP-340 tagged hash: SHA256(SHA256(tag) | SHA256(tag) | data)"""
+    tag_hash = hashlib.sha256(tag.encode('utf-8')).digest()
+    return hashlib.sha256(tag_hash + tag_hash + data).digest()
+
+
+def derive_kyber_keypair(bip32_privkey: bytes) -> Tuple[bytes, bytes]:
+    """Derive a Kyber-1024 keypair deterministically from a 32-byte BIP32 private key.
+
+    d = bip32_privkey
+    z = BIP340_tagged_hash("centurymetadata v1 kyber-z", d)
+
+    These are injected as the two random_bytes(32) calls inside Kyber1024.keygen():
+    the first (_cpapke_keygen) uses d, the second uses z as the implicit rejection value.
+
+    Returns (pubkey, privkey).
+    """
+    assert len(bip32_privkey) == 32
+    d = bip32_privkey
+    z = bip340_tagged_hash("centurymetadata v1 kyber-z", d)
+
+    values = iter([d, z])
+
+    def seeded_random(n: int) -> bytes:
+        return next(values)
+
+    original_random: Callable[[int], bytes] = Kyber1024.random_bytes
+    Kyber1024.random_bytes = seeded_random
+    try:
+        pk, sk = Kyber1024.keygen()
+    finally:
+        Kyber1024.random_bytes = original_random
+    return pk, sk
 
 
 def get_ecdh_secret(privkey: PrivateKey, pubkey: PublicKey) -> bytes:
