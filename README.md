@@ -14,8 +14,9 @@ We are currently in alpha, seeking feedback.
 
 The file format is designed to be self-explanatory and use standard,
 long-lived primitives as much as possible.  Every file contains a
-preamble, followed by 8192 bytes.  The preamble describes the data
-format which follows:
+text preamble followed by binary header fields and encrypted data,
+totalling 8192 bytes.  The preamble describes the binary format
+which follows:
 
 ```
 centurymetadata v1\0SIG[64]|WRITER[33]|READER_ID[32]|GEN[8]|KYBER_CT[1568]|AES[6487]
