@@ -64,13 +64,12 @@ The types of records accepted are as follows:
 
 The test API endpoint can be found at [testapi.centurymetadata.org](https://testapi.centurymetadata.org/api/v1).
 
-### Entry Creation: POST /api/v1/authorize/{READER_ID}/{WRITER_ID}/{AUTHTOKEN}
+### Entry Creation: POST /api/v1/authorize/{READER_ID}/{WRITER_PUBKEY}/{AUTHTOKEN}
 
 You need to get an *AUTHTOKEN* for each new entry.  There can only be
-one entry for any *READER_ID*/*WRITER_ID* pair, but once the entry is
-authorized it can be updated by the writer at any time.  *READER_ID* and
-*WRITER_ID* are the 64-character hex encoding of
-SHA256(secp_pubkey|kyber_pubkey) for the respective key pairs.
+one entry for any *READER_ID*/*WRITER_PUBKEY* pair, but once the entry is
+authorized it can be updated by the writer at any time.  *READER_ID* is the 64-character hex encoding of
+SHA256(secp_pubkey|kyber_pubkey) for the reader, and *WRITER_PUBKEY* is the public key of the writer.
 
 ### Entry Update: POST /api/v1/update
 
