@@ -1,7 +1,6 @@
 #! /usr/bin/python3
 import cgi
 import os
-import json
 import sys
 import centurymetadata
 from secp256k1 import PublicKey

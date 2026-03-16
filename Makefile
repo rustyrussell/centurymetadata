@@ -1,6 +1,5 @@
 #! /usr/bin/make
 
-PYTHONFILES := $(shell find python -name '*.py' -print)
 default: README.md python/README.md web/index.html python/centurymetadata/constants.py
 
 check:
@@ -9,10 +8,10 @@ check:
 check-source: check-flake8 check-mypy
 
 check-flake8:
-	flake8 --ignore=E501,E731,W503 $(PYTHONFILES)
+	cd python && uv run flake8 --ignore=E501,E731,W503 centurymetadata tests
 
 check-mypy:
-	mypy --ignore-missing-imports --disallow-untyped-defs --disallow-incomplete-defs $(PYTHONFILES)
+	cd python && uv run mypy --ignore-missing-imports --disallow-untyped-defs --disallow-incomplete-defs centurymetadata tests
 
 TAGS:
 	etags `find . -name '*.py'`
