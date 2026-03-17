@@ -139,25 +139,54 @@ if __name__ == "__main__":
             print("Needs --reader or --reader-secret", file=sys.stderr)
             exit(1)
 
-        depthreq = requests.get(args.server + '/api/v1/fetchdepth')
-        depth = int(json.loads(depthreq.text)['depth'])
+        listreq = requests.get(args.server + '/api/v1/listbundles')
+        if listreq.status_code != 200:
+            print("listbundles failed: {}".format(listreq.status_code), file=sys.stderr)
+            exit(1)
+        bundle_list = json.loads(listreq.text)
 
-        if depth > 32:
-            print("Server returned unbelievable depth {}"
-                  .format(depthreq.text), file=sys.stderr)
+        # Find the rightmost bundle whose min prefix <= our reader_id
+        rid_hex = reader_id.hex()
+        target_dir = None
+        target_idx = 0
+        for entry in bundle_list:
+            bmin = entry['bundle'].split('-')[0]
+            if rid_hex[:len(bmin)] >= bmin:
+                target_dir = entry['directory']
+                target_idx = entry['index']
+
+        if target_dir is None:
+            print("No bundle found for reader_id {}".format(rid_hex), file=sys.stderr)
             exit(1)
 
-        r = requests.get(args.server + '/api/v1/fetchbundle/{}'
-                         .format(reader_id.hex()[:depth]))
-        if r.headers['Content-Type'] != 'application/x-centurymetadata':
-            print("Server returned bad content type {}"
-                  .format(r.headers['Content-Type']), file=sys.stderr)
+        # Build 128-byte bitmask with only our bundle's bit set.
+        # (For real PIR privacy, query two servers with complementary masks.)
+        bitmask = bytearray(128)
+        bitmask[target_idx // 8] |= (1 << (target_idx % 8))
+
+        r = requests.post(args.server + '/api/v1/fetchxor/{}'.format(target_dir),
+                          data=bytes(bitmask),
+                          headers={'Content-Type': 'application/octet-stream'})
+        if r.status_code != 200:
+            print("fetchxor failed: {}".format(r.status_code), file=sys.stderr)
             exit(1)
-        if args.raw:
-            sys.stdout.buffer.write(r.content)
-        else:
-            print(r.content.hex())
-        exit(0)
+
+        # Scan the bundle for our record: READER_ID sits at offset 64+33 in each slot
+        bundle = r.content
+        slot_size = centurymetadata.FULL_LENGTH
+        reader_id_offset = 64 + 33  # after SIG[64] and WRITER[33]
+        for i in range(1024):
+            slot = bundle[i * slot_size:(i + 1) * slot_size]
+            if slot[reader_id_offset:reader_id_offset + 32] == reader_id:
+                record = centurymetadata.preamble + slot
+                if args.raw:
+                    sys.stdout.buffer.write(record)
+                else:
+                    print(record.hex())
+                exit(0)
+
+        print("Record not found in bundle", file=sys.stderr)
+        exit(1)
     else:
         print("Needs --encode, --decode, --check or --fetch", file=sys.stderr)
         exit(1)

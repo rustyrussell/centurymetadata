@@ -93,25 +93,38 @@ Success
 
 ## Retreiving a Record
 
-To improve privacy, you can only fetch bundles of records: you just need to figure out which bundle you are in.  Bundles are sorted by hex prefix of the READER_ID, so you need to know the prefix length:
+Records are stored in a two-level hierarchy of directories and bundles,
+each bundle holding up to 1024 records.  To find your bundle, fetch the
+bundle listing:
 
 ```
-$ curl http://testapi.centurymetadata.org/api/v1/fetchdepth
-{"depth":2}
+$ curl http://testapi.centurymetadata.org/api/v1/listbundles
+[{"directory": "00-ff", "bundle": "00-ff", "index": 0}]
 ```
 
-In this case, depth is `2` (it can be 1 to 32) so the first two hex digits of the READER_ID identify the bundle, in our case `9f`:
+Each entry gives the directory name, the bundle name within it, and the
+bundle's 0-based index (its bit position in the bitmask for `fetchxor`).
+
+To fetch a bundle, POST a 128-byte bitmask to `fetchxor/{directory}`.
+The server XORs together all bundles whose corresponding bit is set and
+returns the result — always 1024 × 8192 = 8,388,608 bytes.  With a
+single bit set you simply get that bundle back:
 
 ```
-curl http://testapi.centurymetadata.org/api/v1/fetchbundle/9f > /tmp/encdatas
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100 16560    0 16560    0     0  18483      0 --:--:-- --:--:-- --:--:-- 18443
+$ printf '\x01%0.s' {1..127} | cat <(printf '\x01') - | \
+  curl --data-binary @- -H 'Content-Type: application/octet-stream' \
+  http://testapi.centurymetadata.org/api/v1/fetchxor/00-ff > /tmp/bundle
 ```
 
-We always get given the highest generation available of each record.
+Each 8192-byte slot in the bundle contains a record (SIG[64]|WRITER[33]|
+READER_ID[32]|...) with empty slots zeroed.  Your record is the slot
+whose READER_ID field (bytes 97–128) matches your reader_id.
 
-There's a shortcut for getting a single entry, using centurytool:
+For **private retrieval**, query two servers with complementary bitmasks R
+and R⊕(1<<index): XOR their responses to recover your bundle without
+either server learning which one you wanted.
+
+There's a shortcut for single-server fetch using centurytool (no privacy):
 
 ```
 ./examples/centurytool.py \
