@@ -29,22 +29,22 @@ SPLIT_THRESHOLD = int(os.getenv("CENTURYMETADATA_SPLIT_THRESHOLD", "1024"))
 
 
 def bad_404() -> None:
-    print('Status: 404\n\n<html><head></head><body>Invalid URL, see <a href="https://github.com/rustyrussell/centurymetadata/tree/master/examples/EXAMPLES.md">EXAMPLES.md</a></body></html>')
+    print('Status: 404\nContent-Type: text/html\n\n<html><head></head><body>Invalid URL, see <a href="https://github.com/rustyrussell/centurymetadata/tree/master/examples/EXAMPLES.md">EXAMPLES.md</a></body></html>')
     exit(0)
 
 
 def bad_405() -> None:
-    print("Status: 405\n\nMethod Not Allowed")
+    print("Status: 405\nContent-Type: text/plain\n\nMethod Not Allowed")
     exit(0)
 
 
 def bad_400(extra: str) -> None:
-    print("Status: 400\n\nBad Request ({})".format(extra))
+    print("Status: 400\nContent-Type: text/plain\n\nBad Request ({})".format(extra))
     exit(0)
 
 
 def bad_403(extra: str) -> None:
-    print("Status: 403\n\nForbidden ({})".format(extra))
+    print("Status: 403\nContent-Type: text/plain\n\nForbidden ({})".format(extra))
     exit(0)
 
 
