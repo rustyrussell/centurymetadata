@@ -14,10 +14,10 @@ BASEDIR = os.getenv("CENTURYMETADATA_BASEDIR", "/var/lib/centurymetadata/v1")
 #   <dirmin>-<dirmax>/            <- directory: groups ~1024 bundles, named by
 #     <bmin>-<bmax>/              <-   min-max reader_id hex prefix of contents
 #       <reader_id>+<writer>/     <- record dir (empty = authorized, not yet written)
-#         <gen_hex>               <- record file (8192-byte binary, no preamble stored
-#     <bmin>-<bmax>.old/          <-   but full record written; preamble stripped on
-#     ...                         <-   bundle assembly).  .old dirs are left after a
-#   <dirmin>-<dirmax>/            <-   bundle split for ~1hr to serve in-flight queries.
+#         <gen_hex>               <- record file: exactly FULL_LENGTH (8192) bytes,
+#     <bmin>-<bmax>.old/          <-   preamble stripped and verified on upload.
+#     ...                         <- .old dirs kept ~1hr after a split for in-flight
+#   <dirmin>-<dirmax>/            <-   fetchxor queries, then cleaned up.
 #   ...
 #
 # setup.sh creates the initial skeleton: one directory (00-ff) with one bundle (00-ff).
@@ -156,7 +156,10 @@ def update() -> None:
         r = sys.stdin.buffer.read(bytelen)
         bytelen -= len(r)
         b += r
-    wkey, reader_id, gen, after_pre = centurymetadata.deconstruct(b)
+    try:
+        wkey, reader_id, gen, after_pre = centurymetadata.deconstruct(b)
+    except ValueError as e:
+        return bad_400("Malformed record: {}".format(e))
 
     if not centurymetadata.check_sig(after_pre):
         return bad_400("Bad signature on x-centurymetadata")
@@ -173,7 +176,8 @@ def update() -> None:
         return bad_403("Writer {} reader_id {} not authorized; try authorize?"
                        .format(wkey.serialize().hex(), reader_id.hex()))
 
-    f.write(b)
+    # Store only the binary part (preamble already verified by deconstruct)
+    f.write(after_pre)
     f.close()
     success()
 
@@ -193,12 +197,12 @@ def listbundles() -> None:
 
 def assemble_bundle(bundle_path: str) -> bytes:
     """Pack records from a bundle dir into 1024 × FULL_LENGTH bytes, sorted by
-    reader_id, with empty slots zero-padded.  Preamble is stripped from each record."""
+    reader_id, with empty slots zero-padded.  Each record file is exactly
+    FULL_LENGTH bytes (preamble already stripped on upload)."""
     entries = sorted([e for e in os.listdir(bundle_path)
                       if os.path.isdir(os.path.join(bundle_path, e)) and '+' in e])
 
     result = bytearray(1024 * centurymetadata.FULL_LENGTH)
-    preamble_len = len(centurymetadata.preamble)
 
     for i, entry in enumerate(entries[:1024]):
         entry_path = os.path.join(bundle_path, entry)
@@ -207,8 +211,6 @@ def assemble_bundle(bundle_path: str) -> bytes:
             continue
         with open(os.path.join(entry_path, gens[-1]), 'rb') as f:
             data = f.read()
-        if data[:preamble_len] == centurymetadata.preamble:
-            data = data[preamble_len:]
         slot_start = i * centurymetadata.FULL_LENGTH
         result[slot_start:slot_start + centurymetadata.FULL_LENGTH] = data[:centurymetadata.FULL_LENGTH]
 
