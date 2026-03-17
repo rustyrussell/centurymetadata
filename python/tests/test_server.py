@@ -9,7 +9,7 @@ import threading
 import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from typing import Dict, Generator, Tuple
+from typing import Dict, Generator, Set, Tuple
 
 import pytest
 from secp256k1 import PrivateKey
@@ -23,7 +23,8 @@ TOOL_PY = Path(__file__).parent.parent.parent / 'examples' / 'centurytool.py'
 # ── CGI subprocess helper ─────────────────────────────────────────────────────
 
 def call_server(basedir: Path, method: str, path: str,
-                body: bytes = b'', content_type: str = '') -> Tuple[int, Dict[str, str], bytes]:
+                body: bytes = b'', content_type: str = '',
+                extra_env: Dict[str, str] = {}) -> Tuple[int, Dict[str, str], bytes]:
     """Invoke server.py as a CGI subprocess and return (status, headers, body)."""
     env = os.environ.copy()
     env['REQUEST_METHOD'] = method
@@ -33,6 +34,7 @@ def call_server(basedir: Path, method: str, path: str,
         env['CONTENT_LENGTH'] = str(len(body))
     if content_type:
         env['CONTENT_TYPE'] = content_type
+    env.update(extra_env)
 
     result = subprocess.run(
         [sys.executable, str(SERVER_PY)],
@@ -375,3 +377,99 @@ def test_tool_fetch(http_server: Tuple[str, Path], tmp_path: Path) -> None:
     out = result.stdout.decode()
     assert 'mytitle' in out
     assert 'mybody' in out
+
+
+# ── Bundle / directory splitting tests ───────────────────────────────────────
+
+def _authorize_and_upload(basedir: Path, writer_privkey: PrivateKey,
+                          reader_secp: PrivateKey, reader_kyber_pk: bytes,
+                          reader_id: bytes, gen: int,
+                          extra_env: Dict[str, str] = {}) -> None:
+    """Authorize then upload a single record."""
+    rid_hex = reader_id.hex()
+    wpub_hex = writer_privkey.pubkey.serialize().hex()
+    status, _, _ = call_server(
+        basedir, 'POST',
+        f'/api/v1/authorize/{rid_hex}/{wpub_hex}/{"0" * 64}',
+        extra_env=extra_env
+    )
+    assert status in (200, 400)  # 400 = already authorized
+    record = centurymetadata.encode(writer_privkey, reader_secp.pubkey,
+                                    reader_kyber_pk, gen, ['t', 'b'])
+    status, _, _ = call_server(
+        basedir, 'POST', '/api/v1/update',
+        body=record, content_type='application/x-centurymetadata',
+        extra_env=extra_env
+    )
+    assert status == 200
+
+
+def test_bundle_split(tmp_path: Path) -> None:
+    """Uploading more than SPLIT_THRESHOLD records causes the bundle to split."""
+    (tmp_path / '00-ff' / '00-ff').mkdir(parents=True)
+    threshold = 4
+    extra_env = {'CENTURYMETADATA_SPLIT_THRESHOLD': str(threshold)}
+
+    privkeys = [PrivateKey(bytes([i + 1]) + bytes(31)) for i in range(threshold + 1)]
+    writer = privkeys[0]
+
+    for i, reader_secp in enumerate(privkeys):
+        kyber_seed = bytes([i + 1] * 32)
+        reader_kyber_pk, _ = centurymetadata.derive_kyber_keypair(kyber_seed)
+        reader_id = centurymetadata.get_reader_id(reader_secp.pubkey, reader_kyber_pk)
+        _authorize_and_upload(tmp_path, writer, reader_secp, reader_kyber_pk,
+                              reader_id, 0, extra_env=extra_env)
+
+    status, _, body = call_server(tmp_path, 'GET', '/api/v1/listbundles',
+                                  extra_env=extra_env)
+    assert status == 200
+    bundles = json.loads(body)
+    assert len(bundles) > 1, f"Expected split, got {bundles}"
+
+
+def test_split_records_accessible(tmp_path: Path) -> None:
+    """After splitting, records can still be fetched via fetchxor."""
+    (tmp_path / '00-ff' / '00-ff').mkdir(parents=True)
+    threshold = 4
+    extra_env = {'CENTURYMETADATA_SPLIT_THRESHOLD': str(threshold)}
+
+    privkeys = [PrivateKey(bytes([i + 1]) + bytes(31)) for i in range(threshold + 1)]
+    writer = privkeys[0]
+    kyber_seeds = [bytes([i + 1] * 32) for i in range(len(privkeys))]
+    reader_ids = []
+
+    for i, reader_secp in enumerate(privkeys):
+        reader_kyber_pk, _ = centurymetadata.derive_kyber_keypair(kyber_seeds[i])
+        reader_id = centurymetadata.get_reader_id(reader_secp.pubkey, reader_kyber_pk)
+        reader_ids.append(reader_id)
+        _authorize_and_upload(tmp_path, writer, reader_secp, reader_kyber_pk,
+                              reader_id, 0, extra_env=extra_env)
+
+    status, _, body = call_server(tmp_path, 'GET', '/api/v1/listbundles',
+                                  extra_env=extra_env)
+    assert status == 200
+    bundles = json.loads(body)
+
+    slot_size = centurymetadata.FULL_LENGTH
+    all_slots: Dict[bytes, bytes] = {}
+    dirs_seen: Set[str] = set()
+    for bundle_entry in bundles:
+        directory = bundle_entry['directory']
+        idx = bundle_entry['index']
+        dirs_seen.add(directory)
+        bitmask = bytearray(128)
+        bitmask[idx // 8] |= (1 << (idx % 8))
+        s, _, data = call_server(tmp_path, 'POST',
+                                 f'/api/v1/fetchxor/{directory}',
+                                 body=bytes(bitmask),
+                                 content_type='application/octet-stream',
+                                 extra_env=extra_env)
+        assert s == 200
+        for j in range(1024):
+            slot = data[j * slot_size:(j + 1) * slot_size]
+            rid = slot[64 + 33:64 + 33 + 32]
+            if any(rid):
+                all_slots[rid] = slot
+
+    for reader_id in reader_ids:
+        assert reader_id in all_slots, f"reader_id {reader_id.hex()} not found after split"

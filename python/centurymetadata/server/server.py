@@ -1,6 +1,7 @@
 #! /usr/bin/python3
 import json
 import os
+import shutil
 import sys
 import centurymetadata
 from secp256k1 import PublicKey
@@ -8,6 +9,7 @@ from typing import Optional, Tuple, Any
 
 TOPLEVEL = "/api/v1/"
 BASEDIR = os.getenv("CENTURYMETADATA_BASEDIR", "/var/lib/centurymetadata/v1")
+SPLIT_THRESHOLD = int(os.getenv("CENTURYMETADATA_SPLIT_THRESHOLD", "1024"))
 
 # Directory layout under BASEDIR:
 #
@@ -22,7 +24,8 @@ BASEDIR = os.getenv("CENTURYMETADATA_BASEDIR", "/var/lib/centurymetadata/v1")
 #
 # setup.sh creates the initial skeleton: one directory (00-ff) with one bundle (00-ff).
 # Records are routed to the bundle whose min-prefix <= reader_id (rightmost match).
-# Bundle splitting (when a bundle exceeds ~1024 records) is not yet implemented.
+# When a bundle exceeds SPLIT_THRESHOLD records it is split into two halves; when a
+# directory exceeds SPLIT_THRESHOLD bundles it is likewise split.
 
 
 def bad_404() -> None:
@@ -123,6 +126,90 @@ def storage_dir(reader_id: bytes, wkey: PublicKey) -> Optional[str]:
                         reader_id.hex() + "+" + wkey.serialize().hex())
 
 
+def minimal_prefix_len(a: str, b: str) -> int:
+    """Shortest L such that a[:L] != b[:L]."""
+    for L in range(1, min(len(a), len(b)) + 1):
+        if a[:L] != b[:L]:
+            return L
+    return min(len(a), len(b))
+
+
+def split_bundle(dir_path: str, bundle_name_str: str) -> None:
+    """Split an overfull bundle into two halves sorted by reader_id.
+
+    Copies records to two new bundle directories named by the minimal
+    distinct hex prefix of their min/max reader_ids, then renames the
+    old bundle directory to <name>.old.
+    """
+    bundle_path = os.path.join(dir_path, bundle_name_str)
+    entries = sorted([e for e in os.listdir(bundle_path)
+                      if os.path.isdir(os.path.join(bundle_path, e)) and '+' in e])
+    if len(entries) < 2:
+        return
+
+    mid = len(entries) // 2
+    half1, half2 = entries[:mid], entries[mid:]
+
+    rid1_min = half1[0].split('+')[0]
+    rid1_max = half1[-1].split('+')[0]
+    rid2_min = half2[0].split('+')[0]
+    rid2_max = half2[-1].split('+')[0]
+
+    L = minimal_prefix_len(rid1_max, rid2_min)
+    name1 = '{}-{}'.format(rid1_min[:L], rid1_max[:L])
+    name2 = '{}-{}'.format(rid2_min[:L], rid2_max[:L])
+    path1 = os.path.join(dir_path, name1)
+    path2 = os.path.join(dir_path, name2)
+
+    os.mkdir(path1)
+    for entry in half1:
+        shutil.copytree(os.path.join(bundle_path, entry), os.path.join(path1, entry))
+
+    os.mkdir(path2)
+    for entry in half2:
+        shutil.copytree(os.path.join(bundle_path, entry), os.path.join(path2, entry))
+
+    os.rename(bundle_path, bundle_path + '.old')
+
+
+def split_directory(dir_name: str) -> None:
+    """Split an overfull directory into two halves sorted by bundle name.
+
+    Copies bundles to two new directories, then renames the old directory
+    to <name>.old.
+    """
+    dir_path = os.path.join(BASEDIR, dir_name)
+    bundles = sorted([b for b in os.listdir(dir_path)
+                      if os.path.isdir(os.path.join(dir_path, b)) and is_range_name(b)])
+    if len(bundles) < 2:
+        return
+
+    mid = len(bundles) // 2
+    half1, half2 = bundles[:mid], bundles[mid:]
+
+    dir1_min = half1[0].split('-')[0]
+    dir1_max = half1[-1].split('-')[1]
+    dir2_min = half2[0].split('-')[0]
+    dir2_max = half2[-1].split('-')[1]
+
+    # Pad to full reader_id length for boundary comparison
+    L = minimal_prefix_len(dir1_max.ljust(64, 'f'), dir2_min.ljust(64, '0'))
+    name1 = '{}-{}'.format(dir1_min[:L], dir1_max[:L])
+    name2 = '{}-{}'.format(dir2_min[:L], dir2_max[:L])
+    path1 = os.path.join(BASEDIR, name1)
+    path2 = os.path.join(BASEDIR, name2)
+
+    os.mkdir(path1)
+    for bundle in half1:
+        shutil.copytree(os.path.join(dir_path, bundle), os.path.join(path1, bundle))
+
+    os.mkdir(path2)
+    for bundle in half2:
+        shutil.copytree(os.path.join(dir_path, bundle), os.path.join(path2, bundle))
+
+    os.rename(dir_path, dir_path + '.old')
+
+
 def authorize(reader: str, writer: str, authtoken: str) -> None:
     # We use a dummy authtoken for testapi
     if authtoken != '0' * 64:
@@ -164,9 +251,13 @@ def update() -> None:
     if not centurymetadata.check_sig(after_pre):
         return bad_400("Bad signature on x-centurymetadata")
 
-    sdir = storage_dir(reader_id, wkey)
-    if sdir is None:
+    location = find_dir_and_bundle(reader_id)
+    if location is None:
         return bad_403("Server not configured: no bundles found")
+    dir_name, bundle_name = location
+
+    sdir = os.path.join(BASEDIR, dir_name, bundle_name,
+                        reader_id.hex() + "+" + wkey.serialize().hex())
 
     try:
         f = open(os.path.join(sdir, gen.to_bytes(8, "big").hex()), "xb")
@@ -179,6 +270,18 @@ def update() -> None:
     # Store only the binary part (preamble already verified by deconstruct)
     f.write(after_pre)
     f.close()
+
+    # Split bundle if it exceeds the threshold
+    dir_path = os.path.join(BASEDIR, dir_name)
+    bundle_path = os.path.join(dir_path, bundle_name)
+    bundle_entries = [e for e in os.listdir(bundle_path)
+                      if os.path.isdir(os.path.join(bundle_path, e)) and '+' in e]
+    if len(bundle_entries) > SPLIT_THRESHOLD:
+        split_bundle(dir_path, bundle_name)
+        live_bundles = [b for b in os.listdir(dir_path) if is_range_name(b)]
+        if len(live_bundles) > SPLIT_THRESHOLD:
+            split_directory(dir_name)
+
     success()
 
 
