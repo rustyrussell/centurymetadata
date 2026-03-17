@@ -59,6 +59,7 @@ The types of records accepted are as follows:
 * Title: `bitcoin psbt`, Body: base64-encoded PSBT
 * Title: `bitcoin transaction` Body: hex-encoded transaction
 * Title: `bitcoin miniscript` Body: miniscript string
+* Title: `bitcoin output descriptor` Body: BIP-380 output descriptor string
 
 ## API
 
