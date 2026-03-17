@@ -28,6 +28,8 @@ python/README.md: README.md
 python/centurymetadata/constants.py: templates/constants.py.src vars Makefile
 	templates/convert-src raw vars $< > $@
 
-upload: web/index.html python/centurymetadata/server/server.py
+upload: web/index.html
 	rsync -av web/ ozlabs.org:/home/rusty/www/centurymetadata.org/htdocs/
-	rsync python/centurymetadata/server/server.py ozlabs.org:www/centurymetadata.org/cgi/
+	git push -f ssh://ozlabs.org/home/rusty/centurymetadata/ master:incoming
+	ssh ozlabs.org 'cd ~/centurymetadata && git checkout master && git merge --ff-only incoming && cd python && uv sync && sed "1s|.*|#! /home/rusty/centurymetadata/python/.venv/bin/python3|" centurymetadata/server/server.py > ~/www/centurymetadata.org/cgi/server.py && chmod +x ~/www/centurymetadata.org/cgi/server.py'
+
