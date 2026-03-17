@@ -1,5 +1,4 @@
 #! /usr/bin/python3
-import cgi
 import json
 import os
 import sys
@@ -8,7 +7,7 @@ from secp256k1 import PublicKey
 from typing import Optional, Tuple, Any
 
 TOPLEVEL = "/api/v1/"
-BASEDIR = "/home/rusty/data/centurymetadata/v1"
+BASEDIR = os.getenv("CENTURYMETADATA_BASEDIR", "/var/lib/centurymetadata/v1")
 
 # Directory layout under BASEDIR:
 #
@@ -266,7 +265,7 @@ handlers: Any = {'authorize': ("POST", authorize, 3),
 req = os.getenv("PATH_INFO")
 reqmethod = os.getenv("REQUEST_METHOD")
 if not req or not reqmethod:
-    cgi.test()
+    print("Status: 400\n\nNot a CGI environment (PATH_INFO/REQUEST_METHOD not set)")
     exit(1)
 
 if not req.startswith(TOPLEVEL):

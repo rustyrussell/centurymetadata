@@ -1,7 +1,7 @@
 #! /bin/sh
 # Script to setup centurymetadata server directory skeleton
 
-BASEDIR=/home/rusty/data/centurymetadata/v1
+BASEDIR=${CENTURYMETADATA_BASEDIR:-/var/lib/centurymetadata/v1}
 
 if [ ! -d "$BASEDIR" ]; then
     mkdir -p "$BASEDIR"
