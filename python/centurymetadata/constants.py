@@ -2,7 +2,7 @@ verheader = b"centurymetadata v1\0"
 preamble = verheader + b"""SIG[64]|WRITER[33]|READER_ID[32]|GEN[8]|KYBER_CT[1568]|AES[6487]
 
 SIG: BIP-340 SHA256(TAG|TAG|WRITER|READER_ID|GEN|KYBER_CT|AES)
-WRITER: secp256k1 x-only key
+WRITER: secp256k1 33-byte pubkey
 READER_ID: SHA256(reader_secp_pubkey|reader_kyber_pubkey)
 TAG: SHA256("centurymetadata v1"[18])
 KYBER_CT: Kyber-1024 KEM ciphertext encapsulated to reader's Kyber key
