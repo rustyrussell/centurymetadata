@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 from Cryptodome.Cipher import AES
-from kyber_py.kyber import Kyber1024
-from centurymetadata import compress, aes, derive_kyber_keypair, get_ecdh_secret, get_reader_id, get_aeskey, contents, encode, DATA_LENGTH, KYBER_CT_LENGTH
+from kyber_py.ml_kem import ML_KEM_1024
+from centurymetadata import compress, aes, derive_mlkem_keypair, get_ecdh_secret, get_reader_id, get_aeskey, contents, encode, DATA_LENGTH, MLKEM_CT_LENGTH
 from centurymetadata.constants import preamble
 from secp256k1 import PrivateKey
 import gzip
@@ -53,44 +53,44 @@ def test_get_ecdh_secret() -> None:
 
 def test_get_reader_id() -> None:
     secret = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
-    kyber_pk, _ = Kyber1024.keygen()
+    mlkem_pk, _ = ML_KEM_1024.keygen()
 
-    reader_id = get_reader_id(secret.pubkey, kyber_pk)
+    reader_id = get_reader_id(secret.pubkey, mlkem_pk)
     assert len(reader_id) == 32
-    assert reader_id == hashlib.sha256(secret.pubkey.serialize() + kyber_pk).digest()
+    assert reader_id == hashlib.sha256(secret.pubkey.serialize() + mlkem_pk).digest()
 
 
 def test_get_aeskey() -> None:
     ecdh_secret = bytes([random.choice(range(256)) for _ in range(32)])
-    kyber_secret = bytes([random.choice(range(256)) for _ in range(32)])
+    mlkem_secret = bytes([random.choice(range(256)) for _ in range(32)])
 
-    aeskey = get_aeskey(ecdh_secret, kyber_secret)
+    aeskey = get_aeskey(ecdh_secret, mlkem_secret)
     assert len(aeskey) == 32
-    assert aeskey == hashlib.sha256(ecdh_secret + kyber_secret).digest()
+    assert aeskey == hashlib.sha256(ecdh_secret + mlkem_secret).digest()
 
 
 def test_contents() -> None:
     secret1 = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
     reader_id = bytes([random.choice(range(256)) for _ in range(32)])
-    kyber_ct = bytes([random.choice(range(256)) for _ in range(KYBER_CT_LENGTH)])
+    mlkem_ct = bytes([random.choice(range(256)) for _ in range(MLKEM_CT_LENGTH)])
     data = bytes((2,) * DATA_LENGTH)
 
-    ret = contents(secret1.pubkey, reader_id, 1, kyber_ct, data)
+    ret = contents(secret1.pubkey, reader_id, 1, mlkem_ct, data)
 
     assert len(ret) == 8192 - 64
     assert ret[0:33] == secret1.pubkey.serialize()
     assert ret[33:33 + 32] == reader_id
     assert ret[33 + 32:33 + 32 + 8] == bytes((0,) * 7 + (1,))
-    assert ret[33 + 32 + 8:33 + 32 + 8 + KYBER_CT_LENGTH] == kyber_ct
-    assert ret[33 + 32 + 8 + KYBER_CT_LENGTH:] == data
+    assert ret[33 + 32 + 8:33 + 32 + 8 + MLKEM_CT_LENGTH] == mlkem_ct
+    assert ret[33 + 32 + 8 + MLKEM_CT_LENGTH:] == data
 
 
-def test_derive_kyber_keypair() -> None:
+def test_derive_mlkem_keypair() -> None:
     privkey = bytes([random.choice(range(256)) for _ in range(32)])
 
     # Deterministic: same input gives same output
-    pk1, sk1 = derive_kyber_keypair(privkey)
-    pk2, sk2 = derive_kyber_keypair(privkey)
+    pk1, sk1 = derive_mlkem_keypair(privkey)
+    pk2, sk2 = derive_mlkem_keypair(privkey)
     assert pk1 == pk2
     assert sk1 == sk2
 
@@ -100,25 +100,25 @@ def test_derive_kyber_keypair() -> None:
 
     # Different inputs give different outputs
     privkey2 = bytes([random.choice(range(256)) for _ in range(32)])
-    pk3, _ = derive_kyber_keypair(privkey2)
+    pk3, _ = derive_mlkem_keypair(privkey2)
     assert pk1 != pk3
 
     # Derived keypair works for encaps/decaps
-    key, ct = Kyber1024.encaps(pk1)
-    assert Kyber1024.decaps(sk1, ct) == key
+    key, ct = ML_KEM_1024.encaps(pk1)
+    assert ML_KEM_1024.decaps(sk1, ct) == key
 
-    # Leaves Kyber1024 random_bytes intact (not the seeded version)
-    pk4, _ = Kyber1024.keygen()
-    pk5, _ = Kyber1024.keygen()
+    # Leaves ML_KEM_1024 random_bytes intact (not the seeded version)
+    pk4, _ = ML_KEM_1024.keygen()
+    pk5, _ = ML_KEM_1024.keygen()
     assert pk4 != pk5  # would fail if DRBG were left seeded
 
 
 def test_encode_complete() -> None:
     writer_privkey = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
     reader_secp_privkey = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
-    reader_kyber_pubkey, _ = Kyber1024.keygen()
+    reader_mlkem_pubkey, _ = ML_KEM_1024.keygen()
 
-    complete = encode(writer_privkey, reader_secp_privkey.pubkey, reader_kyber_pubkey, 0,
+    complete = encode(writer_privkey, reader_secp_privkey.pubkey, reader_mlkem_pubkey, 0,
                       ['a', 'aaaaaa'], ['b', 'bbbbbb'])
     assert len(complete) == len(preamble) + 8192
     assert complete.startswith(preamble)

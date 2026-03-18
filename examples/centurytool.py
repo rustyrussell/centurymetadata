@@ -8,41 +8,41 @@ import sys
 
 
 def parse_reader_public(reader_str):
-    """Parse --reader as 'secp_pubkey_hex/kyber_pubkey_hex'"""
+    """Parse --reader as 'secp_pubkey_hex/mlkem_pubkey_hex'"""
     parts = reader_str.split('/')
     if len(parts) != 2:
-        print("--reader must be secp_pubkey_hex/kyber_pubkey_hex", file=sys.stderr)
+        print("--reader must be secp_pubkey_hex/mlkem_pubkey_hex", file=sys.stderr)
         exit(1)
     try:
         secp_pubkey = secp256k1.PublicKey(bytes.fromhex(parts[0]), raw=True)
-        kyber_pubkey = bytes.fromhex(parts[1])
+        mlkem_pubkey = bytes.fromhex(parts[1])
     except Exception as e:
         print("Bad --reader: {}".format(e), file=sys.stderr)
         exit(1)
-    return secp_pubkey, kyber_pubkey
+    return secp_pubkey, mlkem_pubkey
 
 
 def parse_reader_secret(secret_str):
-    """Parse --reader-secret as 'secp_privkey_hex/kyber_seed_hex'"""
+    """Parse --reader-secret as 'secp_privkey_hex/mlkem_seed_hex'"""
     parts = secret_str.split('/')
     if len(parts) != 2:
-        print("--reader-secret must be secp_privkey_hex/kyber_seed_hex", file=sys.stderr)
+        print("--reader-secret must be secp_privkey_hex/mlkem_seed_hex", file=sys.stderr)
         exit(1)
     try:
         secp_privkey = secp256k1.PrivateKey(bytes.fromhex(parts[0]))
-        kyber_seed = bytes.fromhex(parts[1])
+        mlkem_seed = bytes.fromhex(parts[1])
     except Exception as e:
         print("Bad --reader-secret: {}".format(e), file=sys.stderr)
         exit(1)
-    kyber_pk, kyber_sk = centurymetadata.derive_kyber_keypair(kyber_seed)
-    return secp_privkey, kyber_pk, kyber_sk
+    mlkem_pk, mlkem_sk = centurymetadata.derive_mlkem_keypair(mlkem_seed)
+    return secp_privkey, mlkem_pk, mlkem_sk
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--writer-secret", help="Writer secret key (64 hex digits)")
-    parser.add_argument("--reader", help="Reader public keys (secp_pubkey_hex/kyber_pubkey_hex)")
-    parser.add_argument("--reader-secret", help="Reader secret keys (secp_privkey_hex/kyber_seed_hex)")
+    parser.add_argument("--reader", help="Reader public keys (secp_pubkey_hex/mlkem_pubkey_hex)")
+    parser.add_argument("--reader-secret", help="Reader secret keys (secp_privkey_hex/mlkem_seed_hex)")
     parser.add_argument("--generation", type=int, help="Generation number", default=0)
     parser.add_argument("--raw", help="Output raw binary, suppress other output", action="store_true")
     parser.add_argument("--decode", help='hex string to decode (@ means read raw binary filename)')
@@ -55,19 +55,19 @@ if __name__ == "__main__":
     # Derive reader keys
     reader_secp_privkey = None
     reader_secp_pubkey = None
-    reader_kyber_pubkey = None
-    reader_kyber_privkey = None
+    reader_mlkem_pubkey = None
+    reader_mlkem_privkey = None
     reader_id = None
 
     if args.reader_secret:
-        reader_secp_privkey, reader_kyber_pubkey, reader_kyber_privkey = parse_reader_secret(args.reader_secret)
+        reader_secp_privkey, reader_mlkem_pubkey, reader_mlkem_privkey = parse_reader_secret(args.reader_secret)
         reader_secp_pubkey = reader_secp_privkey.pubkey
-        reader_id = centurymetadata.get_reader_id(reader_secp_pubkey, reader_kyber_pubkey)
+        reader_id = centurymetadata.get_reader_id(reader_secp_pubkey, reader_mlkem_pubkey)
         if not args.raw:
             print("Derived reader_id: {}".format(reader_id.hex()))
     elif args.reader:
-        reader_secp_pubkey, reader_kyber_pubkey = parse_reader_public(args.reader)
-        reader_id = centurymetadata.get_reader_id(reader_secp_pubkey, reader_kyber_pubkey)
+        reader_secp_pubkey, reader_mlkem_pubkey = parse_reader_public(args.reader)
+        reader_id = centurymetadata.get_reader_id(reader_secp_pubkey, reader_mlkem_pubkey)
 
     if args.decode:
         if not args.reader_secret:
@@ -77,7 +77,7 @@ if __name__ == "__main__":
             decode_data = open(args.decode[1:], "rb").read()
         else:
             decode_data = bytes.fromhex(args.decode)
-        ret = centurymetadata.decode(reader_secp_privkey, reader_kyber_privkey, decode_data)
+        ret = centurymetadata.decode(reader_secp_privkey, reader_mlkem_privkey, decode_data)
         if ret is None:
             print("decode failed", file=sys.stderr)
             exit(1)
@@ -86,7 +86,7 @@ if __name__ == "__main__":
             print(body)
             print()
     elif args.encode:
-        if reader_secp_pubkey is None or reader_kyber_pubkey is None:
+        if reader_secp_pubkey is None or reader_mlkem_pubkey is None:
             print("Needs --reader or --reader-secret", file=sys.stderr)
             exit(1)
 
@@ -98,7 +98,7 @@ if __name__ == "__main__":
         if not args.raw:
             print("Writer pubkey: {}".format(writer.pubkey.serialize().hex()))
 
-        ret = centurymetadata.encode(writer, reader_secp_pubkey, reader_kyber_pubkey,
+        ret = centurymetadata.encode(writer, reader_secp_pubkey, reader_mlkem_pubkey,
                                      args.generation,
                                      *args.encode)
         if args.raw:

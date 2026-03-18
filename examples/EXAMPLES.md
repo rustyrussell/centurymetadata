@@ -5,11 +5,11 @@
 You need two key pairs: one for the reader, and one for the writer.  Let's
 use all-1 bytes for the writer's secp256k1 secret, all-2 bytes for the
 reader's secp256k1 secret, and all-2 bytes as the seed for the reader's
-Kyber-1024 key.
+ML-KEM-1024 key.
 
 The `--reader-secret` argument takes two 32-byte hex secrets separated by
-`/`: the secp256k1 private key, then the Kyber seed (used with
-`derive_kyber_keypair` to produce the Kyber keypair deterministically).
+`/`: the secp256k1 private key, then the ML-KEM seed (used with
+`derive_mlkem_keypair` to produce the ML-KEM keypair deterministically).
 
 Let's encode two records, one titled `text`, contents `text one`, the
 second also titled `text` and contents `text two`.
@@ -25,7 +25,7 @@ Writer pubkey: 031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078
 ```
 
 The output is 8192 bytes of binary data (including the preamble header).
-It is non-deterministic because the Kyber encapsulation uses randomness.
+It is non-deterministic because the ML-KEM encapsulation uses randomness.
 
 And here's how we'd do this in python:
 
@@ -36,18 +36,18 @@ import secp256k1
 # Dummy secrets!
 writer_privkey = secp256k1.PrivateKey(bytes((1,) * 32))
 reader_secp_privkey = secp256k1.PrivateKey(bytes((2,) * 32))
-reader_kyber_seed = bytes((2,) * 32)
+reader_mlkem_seed = bytes((2,) * 32)
 
 reader_secp_pubkey = reader_secp_privkey.pubkey
-reader_kyber_pubkey, reader_kyber_privkey = centurymetadata.derive_kyber_keypair(reader_kyber_seed)
+reader_mlkem_pubkey, reader_mlkem_privkey = centurymetadata.derive_mlkem_keypair(reader_mlkem_seed)
 
 # Generation is 0, as this is our first data
-enc = centurymetadata.encode(writer_privkey, reader_secp_pubkey, reader_kyber_pubkey,
+enc = centurymetadata.encode(writer_privkey, reader_secp_pubkey, reader_mlkem_pubkey,
                              0, ('text', 'text one'), ('text', 'text two'))
 ```
 
 If you are encoding for someone else (you have their public keys, not their
-secrets), use `--reader=secp_pubkey_hex/kyber_pubkey_hex`.  For our example
+secrets), use `--reader=secp_pubkey_hex/mlkem_pubkey_hex`.  For our example
 reader with secrets `0202.../0202...`, the public keys are:
 
 ```

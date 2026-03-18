@@ -19,16 +19,16 @@ totalling 8192 bytes.  The preamble describes the binary format
 which follows:
 
 ```
-centurymetadata v1\0SIG[64]|WRITER[33]|READER_ID[32]|GEN[8]|KYBER_CT[1568]|AES[6487]
+centurymetadata v1\0SIG[64]|WRITER[33]|READER_ID[32]|GEN[8]|MLKEM_CT[1568]|AES[6487]
 
-SIG: BIP-340 SHA256(TAG|TAG|WRITER|READER_ID|GEN|KYBER_CT|AES)
+SIG: BIP-340 SHA256(TAG|TAG|WRITER|READER_ID|GEN|MLKEM_CT|AES)
 WRITER: secp256k1 33-byte pubkey
-READER_ID: SHA256(reader_secp_pubkey|reader_kyber_pubkey)
+READER_ID: SHA256(reader_secp_pubkey|reader_mlkem_pubkey)
 TAG: SHA256("centurymetadata v1"[18])
-KYBER_CT: Kyber-1024 KEM ciphertext encapsulated to reader's Kyber key
-KYBER_SECRET: Kyber-1024.Decapsulate(KYBER_CT, reader_kyber_privkey)
+MLKEM_CT: ML-KEM-1024 (FIPS 203) ciphertext encapsulated to reader's ML-KEM key
+MLKEM_SECRET: ML-KEM-1024.Decaps(MLKEM_CT, reader_mlkem_privkey)
 ECDH_SECRET: EC Diffie-Hellman of WRITER and reader_secp_key
-AESKEY: SHA256(ECDH_SECRET|KYBER_SECRET)
+AESKEY: SHA256(ECDH_SECRET|MLKEM_SECRET)
 AES: CTR mode (starting 0, nonce 0) using AESKEY of DATA
 DATA: gzip([TITLE\0CONTENTS\0]+), padded with 0 bytes to 6487\0
 ```
@@ -44,12 +44,12 @@ The BIP 32 path recommended for centurymetadata is
 `0x44315441'/N'/0'` through `/3'` (`DATA`),
 where `N` starts at 0 and increments for each additional key set.
 `/0'` is the writer secp256k1 key, `/1'` is the reader
-secp256k1 key, `/2'` seeds the writer Kyber-1024 key, and
-`/3'` seeds the reader Kyber-1024 key.  Each Kyber key pair is
+secp256k1 key, `/2'` seeds the writer ML-KEM-1024 key, and
+`/3'` seeds the reader ML-KEM-1024 key.  Each ML-KEM-1024 (FIPS 203) key pair is
 derived from the 32-byte BIP32 private key d at that path: the ML-KEM-1024
 seed is d concatenated with z, where z is the BIP-340 tagged hash of d with
-tag "centurymetadata v1 kyber-z".  The READER_ID field is compressed
-SHA256(secp_pubkey|kyber_pubkey).  Of course, if you share your reader
+tag "centurymetadata v1 mlkem-z".  The READER_ID field is compressed
+SHA256(secp_pubkey|mlkem_pubkey).  Of course, if you share your reader
 keys, others can also send encrypted data to you, but you know that
 the record from your own writer key can be trusted.
 
@@ -68,7 +68,7 @@ The test API endpoint can be found at [testapi.centurymetadata.org](https://test
 You need to get an *AUTHTOKEN* for each new entry.  There can only be
 one entry for any *READER_ID*/*WRITER* pair, but once the entry is
 authorized it can be updated by the writer at any time.  *READER_ID* is
-the 64-character hex encoding of SHA256(secp_pubkey|kyber_pubkey).
+the 64-character hex encoding of SHA256(secp_pubkey|mlkem_pubkey).
 
 ### Entry Update: POST /api/v1/update
 

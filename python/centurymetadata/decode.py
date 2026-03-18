@@ -2,7 +2,7 @@ from Cryptodome.Cipher import AES
 import gzip
 from kyber_py.ml_kem import ML_KEM_1024
 from secp256k1 import PrivateKey, PublicKey
-from .constants import bip340tag, preamble, DATA_LENGTH, FULL_LENGTH, KYBER_CT_LENGTH
+from .constants import bip340tag, preamble, DATA_LENGTH, FULL_LENGTH, MLKEM_CT_LENGTH
 from .encode import get_ecdh_secret, get_aeskey
 from typing import Tuple, List, Optional
 
@@ -32,7 +32,7 @@ def unaes(aeskey: bytes, encrypted: bytes) -> bytes:
 
 
 def split_parts(after_preamble: bytes) -> Tuple[bytes, PublicKey, bytes, int, bytes, bytes]:
-    """Split into sig, writer, reader_id, gen, kyber_ct, aes"""
+    """Split into sig, writer, reader_id, gen, mlkem_ct, aes"""
     try:
         wkey = PublicKey(after_preamble[64:64 + 33], raw=True)
     except Exception:
@@ -42,11 +42,11 @@ def split_parts(after_preamble: bytes) -> Tuple[bytes, PublicKey, bytes, int, by
     reader_id = after_preamble[64 + 33:64 + 33 + 32]
     gen_off = 64 + 33 + 32
     gen = int.from_bytes(after_preamble[gen_off:gen_off + 8], "big")
-    kyber_ct_off = gen_off + 8
-    kyber_ct = after_preamble[kyber_ct_off:kyber_ct_off + KYBER_CT_LENGTH]
-    aes_data = after_preamble[kyber_ct_off + KYBER_CT_LENGTH:]
+    mlkem_ct_off = gen_off + 8
+    mlkem_ct = after_preamble[mlkem_ct_off:mlkem_ct_off + MLKEM_CT_LENGTH]
+    aes_data = after_preamble[mlkem_ct_off + MLKEM_CT_LENGTH:]
 
-    return (after_preamble[0:64], wkey, reader_id, gen, kyber_ct, aes_data)
+    return (after_preamble[0:64], wkey, reader_id, gen, mlkem_ct, aes_data)
 
 
 def check_sig(after_preamble: bytes) -> bool:
@@ -74,7 +74,7 @@ def deconstruct(cmetadata: bytes) -> Tuple[PublicKey, bytes, int, bytes]:
 
 
 def decode(reader_secp_privkey: PrivateKey,
-           reader_kyber_privkey: bytes,
+           reader_mlkem_privkey: bytes,
            cmetadata: bytes) -> Optional[List[Tuple[str, str]]]:
     if not cmetadata.startswith(preamble):
         return None
@@ -83,11 +83,11 @@ def decode(reader_secp_privkey: PrivateKey,
         return None
     if not check_sig(after_preamble):
         return None
-    sig, wkey, reader_id, gen, kyber_ct, encrypted = split_parts(after_preamble)
+    sig, wkey, reader_id, gen, mlkem_ct, encrypted = split_parts(after_preamble)
 
     ecdh_secret = get_ecdh_secret(reader_secp_privkey, wkey)
-    kyber_secret = ML_KEM_1024.decaps(reader_kyber_privkey, kyber_ct)
-    aeskey = get_aeskey(ecdh_secret, kyber_secret)
+    mlkem_secret = ML_KEM_1024.decaps(reader_mlkem_privkey, mlkem_ct)
+    aeskey = get_aeskey(ecdh_secret, mlkem_secret)
 
     comp = unaes(aeskey, encrypted)
     return decompress(comp)

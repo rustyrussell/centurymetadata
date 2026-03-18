@@ -3,7 +3,7 @@ import gzip
 import hashlib
 from kyber_py.ml_kem import ML_KEM_1024
 from secp256k1 import PrivateKey, PublicKey
-from .constants import bip340tag, preamble, DATA_LENGTH, KYBER_CT_LENGTH
+from .constants import bip340tag, preamble, DATA_LENGTH, MLKEM_CT_LENGTH
 from typing import Callable, Iterable, Tuple, Any
 
 
@@ -37,20 +37,20 @@ def bip340_tagged_hash(tag: str, data: bytes) -> bytes:
     return hashlib.sha256(tag_hash + tag_hash + data).digest()
 
 
-def derive_kyber_keypair(bip32_privkey: bytes) -> Tuple[bytes, bytes]:
-    """Derive a Kyber-1024 keypair deterministically from a 32-byte BIP32 private key.
+def derive_mlkem_keypair(bip32_privkey: bytes) -> Tuple[bytes, bytes]:
+    """Derive an ML-KEM-1024 (FIPS 203) keypair deterministically from a 32-byte BIP32 private key.
 
     d = bip32_privkey
-    z = BIP340_tagged_hash("centurymetadata v1 kyber-z", d)
+    z = BIP340_tagged_hash("centurymetadata v1 mlkem-z", d)
 
     These are injected as the two random_bytes(32) calls inside ML_KEM_1024.keygen():
-    the first (_cpapke_keygen) uses d, the second uses z as the implicit rejection value.
+    the first uses d, the second uses z as the implicit rejection value.
 
     Returns (pubkey, privkey).
     """
     assert len(bip32_privkey) == 32
     d = bip32_privkey
-    z = bip340_tagged_hash("centurymetadata v1 kyber-z", d)
+    z = bip340_tagged_hash("centurymetadata v1 mlkem-z", d)
 
     values = iter([d, z])
 
@@ -71,20 +71,20 @@ def get_ecdh_secret(privkey: PrivateKey, pubkey: PublicKey) -> bytes:
     return pubkey.ecdh(privkey.private_key)
 
 
-def get_reader_id(reader_secp_pubkey: PublicKey, reader_kyber_pubkey: bytes) -> bytes:
-    """Compute READER_ID = SHA256(secp_pubkey | kyber_pubkey)"""
-    return hashlib.sha256(reader_secp_pubkey.serialize() + reader_kyber_pubkey).digest()
+def get_reader_id(reader_secp_pubkey: PublicKey, reader_mlkem_pubkey: bytes) -> bytes:
+    """Compute READER_ID = SHA256(secp_pubkey | mlkem_pubkey)"""
+    return hashlib.sha256(reader_secp_pubkey.serialize() + reader_mlkem_pubkey).digest()
 
 
-def get_aeskey(ecdh_secret: bytes, kyber_secret: bytes) -> bytes:
-    """Derive AES key: SHA256(ECDH_SECRET | KYBER_SECRET)"""
-    return hashlib.sha256(ecdh_secret + kyber_secret).digest()
+def get_aeskey(ecdh_secret: bytes, mlkem_secret: bytes) -> bytes:
+    """Derive AES key: SHA256(ECDH_SECRET | MLKEM_SECRET)"""
+    return hashlib.sha256(ecdh_secret + mlkem_secret).digest()
 
 
-def contents(writer: PublicKey, reader_id: bytes, gen: int, kyber_ct: bytes, aes_data: bytes) -> bytes:
+def contents(writer: PublicKey, reader_id: bytes, gen: int, mlkem_ct: bytes, aes_data: bytes) -> bytes:
     assert len(reader_id) == 32
-    assert len(kyber_ct) == KYBER_CT_LENGTH
-    return writer.serialize() + reader_id + gen.to_bytes(8, "big") + kyber_ct + aes_data
+    assert len(mlkem_ct) == MLKEM_CT_LENGTH
+    return writer.serialize() + reader_id + gen.to_bytes(8, "big") + mlkem_ct + aes_data
 
 
 def sign(writer: PrivateKey, cont: bytes) -> bytes:
@@ -93,14 +93,14 @@ def sign(writer: PrivateKey, cont: bytes) -> bytes:
 
 def encode(writer_privkey: PrivateKey,
            reader_secp_pubkey: PublicKey,
-           reader_kyber_pubkey: bytes,
+           reader_mlkem_pubkey: bytes,
            generation: int,
            *pairs: Any) -> bytes:
     comp = compress(pairs)
     ecdh_secret = get_ecdh_secret(writer_privkey, reader_secp_pubkey)
-    kyber_secret, kyber_ct = ML_KEM_1024.encaps(reader_kyber_pubkey)
-    aeskey = get_aeskey(ecdh_secret, kyber_secret)
+    mlkem_secret, mlkem_ct = ML_KEM_1024.encaps(reader_mlkem_pubkey)
+    aeskey = get_aeskey(ecdh_secret, mlkem_secret)
     encrypted = aes(aeskey, comp)
-    reader_id = get_reader_id(reader_secp_pubkey, reader_kyber_pubkey)
-    cont = contents(writer_privkey.pubkey, reader_id, generation, kyber_ct, encrypted)
+    reader_id = get_reader_id(reader_secp_pubkey, reader_mlkem_pubkey)
+    cont = contents(writer_privkey.pubkey, reader_id, generation, mlkem_ct, encrypted)
     return preamble + sign(writer_privkey, cont) + cont

@@ -77,14 +77,14 @@ def basedir(tmp_path: Path) -> Path:
 def keys() -> Dict:
     writer_privkey = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
     reader_secp_privkey = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
-    reader_kyber_seed = bytes([random.choice(range(256)) for _ in range(32)])
-    reader_kyber_pk, reader_kyber_sk = centurymetadata.derive_kyber_keypair(reader_kyber_seed)
-    reader_id = centurymetadata.get_reader_id(reader_secp_privkey.pubkey, reader_kyber_pk)
+    reader_mlkem_seed = bytes([random.choice(range(256)) for _ in range(32)])
+    reader_mlkem_pk, reader_mlkem_sk = centurymetadata.derive_mlkem_keypair(reader_mlkem_seed)
+    reader_id = centurymetadata.get_reader_id(reader_secp_privkey.pubkey, reader_mlkem_pk)
     return {
         'writer': writer_privkey,
         'reader_secp': reader_secp_privkey,
-        'reader_kyber_pk': reader_kyber_pk,
-        'reader_kyber_sk': reader_kyber_sk,
+        'reader_mlkem_pk': reader_mlkem_pk,
+        'reader_mlkem_sk': reader_mlkem_sk,
         'reader_id': reader_id,
     }
 
@@ -179,7 +179,7 @@ def test_update(basedir: Path, keys: Dict) -> None:
                 f'/api/v1/authorize/{reader_id}/{writer_pub}/{"0" * 64}')
 
     record = centurymetadata.encode(
-        keys['writer'], keys['reader_secp'].pubkey, keys['reader_kyber_pk'],
+        keys['writer'], keys['reader_secp'].pubkey, keys['reader_mlkem_pk'],
         0, ['title', 'body']
     )
     status, _, _ = call_server(
@@ -190,7 +190,7 @@ def test_update(basedir: Path, keys: Dict) -> None:
 
 def test_update_unauthorized(basedir: Path, keys: Dict) -> None:
     record = centurymetadata.encode(
-        keys['writer'], keys['reader_secp'].pubkey, keys['reader_kyber_pk'],
+        keys['writer'], keys['reader_secp'].pubkey, keys['reader_mlkem_pk'],
         0, ['title', 'body']
     )
     status, _, _ = call_server(
@@ -206,7 +206,7 @@ def test_update_duplicate_gen(basedir: Path, keys: Dict) -> None:
                 f'/api/v1/authorize/{reader_id}/{writer_pub}/{"0" * 64}')
 
     record = centurymetadata.encode(
-        keys['writer'], keys['reader_secp'].pubkey, keys['reader_kyber_pk'],
+        keys['writer'], keys['reader_secp'].pubkey, keys['reader_mlkem_pk'],
         0, ['title', 'body']
     )
     call_server(basedir, 'POST', '/api/v1/update',
@@ -224,7 +224,7 @@ def test_fetchxor_contains_record(basedir: Path, keys: Dict) -> None:
                 f'/api/v1/authorize/{reader_id}/{writer_pub}/{"0" * 64}')
 
     record = centurymetadata.encode(
-        keys['writer'], keys['reader_secp'].pubkey, keys['reader_kyber_pk'],
+        keys['writer'], keys['reader_secp'].pubkey, keys['reader_mlkem_pk'],
         0, ['title', 'body']
     )
     call_server(basedir, 'POST', '/api/v1/update',
@@ -248,7 +248,7 @@ def test_fetchxor_contains_record(basedir: Path, keys: Dict) -> None:
         if slot[reader_id_offset:reader_id_offset + 32] == our_reader_id:
             found = True
             decoded = centurymetadata.decode(
-                keys['reader_secp'], keys['reader_kyber_sk'],
+                keys['reader_secp'], keys['reader_mlkem_sk'],
                 centurymetadata.preamble + slot
             )
             assert decoded == [('title', 'body')]
@@ -264,7 +264,7 @@ def test_fetchxor_xor_cancels(basedir: Path, keys: Dict) -> None:
                 f'/api/v1/authorize/{reader_id}/{writer_pub}/{"0" * 64}')
 
     record = centurymetadata.encode(
-        keys['writer'], keys['reader_secp'].pubkey, keys['reader_kyber_pk'],
+        keys['writer'], keys['reader_secp'].pubkey, keys['reader_mlkem_pk'],
         0, ['title', 'body']
     )
     call_server(basedir, 'POST', '/api/v1/update',
@@ -343,8 +343,8 @@ def test_tool_fetch(http_server: Tuple[str, Path], tmp_path: Path) -> None:
     writer = PrivateKey(bytes([1] * 32))
     writer_pub = writer.pubkey.serialize().hex()
     reader_secp = PrivateKey(bytes([2] * 32))
-    reader_kyber_pk, _ = centurymetadata.derive_kyber_keypair(bytes([2] * 32))
-    reader_id = centurymetadata.get_reader_id(reader_secp.pubkey, reader_kyber_pk).hex()
+    reader_mlkem_pk, _ = centurymetadata.derive_mlkem_keypair(bytes([2] * 32))
+    reader_id = centurymetadata.get_reader_id(reader_secp.pubkey, reader_mlkem_pk).hex()
 
     # Authorize
     req = urllib.request.Request(
@@ -382,7 +382,7 @@ def test_tool_fetch(http_server: Tuple[str, Path], tmp_path: Path) -> None:
 # ── Bundle / directory splitting tests ───────────────────────────────────────
 
 def _authorize_and_upload(basedir: Path, writer_privkey: PrivateKey,
-                          reader_secp: PrivateKey, reader_kyber_pk: bytes,
+                          reader_secp: PrivateKey, reader_mlkem_pk: bytes,
                           reader_id: bytes, gen: int,
                           extra_env: Dict[str, str] = {}) -> None:
     """Authorize then upload a single record."""
@@ -395,7 +395,7 @@ def _authorize_and_upload(basedir: Path, writer_privkey: PrivateKey,
     )
     assert status in (200, 400)  # 400 = already authorized
     record = centurymetadata.encode(writer_privkey, reader_secp.pubkey,
-                                    reader_kyber_pk, gen, ['t', 'b'])
+                                    reader_mlkem_pk, gen, ['t', 'b'])
     status, _, _ = call_server(
         basedir, 'POST', '/api/v1/update',
         body=record, content_type='application/x-centurymetadata',
@@ -414,10 +414,10 @@ def test_bundle_split(tmp_path: Path) -> None:
     writer = privkeys[0]
 
     for i, reader_secp in enumerate(privkeys):
-        kyber_seed = bytes([i + 1] * 32)
-        reader_kyber_pk, _ = centurymetadata.derive_kyber_keypair(kyber_seed)
-        reader_id = centurymetadata.get_reader_id(reader_secp.pubkey, reader_kyber_pk)
-        _authorize_and_upload(tmp_path, writer, reader_secp, reader_kyber_pk,
+        mlkem_seed = bytes([i + 1] * 32)
+        reader_mlkem_pk, _ = centurymetadata.derive_mlkem_keypair(mlkem_seed)
+        reader_id = centurymetadata.get_reader_id(reader_secp.pubkey, reader_mlkem_pk)
+        _authorize_and_upload(tmp_path, writer, reader_secp, reader_mlkem_pk,
                               reader_id, 0, extra_env=extra_env)
 
     status, _, body = call_server(tmp_path, 'GET', '/api/v1/listbundles',
@@ -435,14 +435,14 @@ def test_split_records_accessible(tmp_path: Path) -> None:
 
     privkeys = [PrivateKey(bytes([i + 1]) + bytes(31)) for i in range(threshold + 1)]
     writer = privkeys[0]
-    kyber_seeds = [bytes([i + 1] * 32) for i in range(len(privkeys))]
+    mlkem_seeds = [bytes([i + 1] * 32) for i in range(len(privkeys))]
     reader_ids = []
 
     for i, reader_secp in enumerate(privkeys):
-        reader_kyber_pk, _ = centurymetadata.derive_kyber_keypair(kyber_seeds[i])
-        reader_id = centurymetadata.get_reader_id(reader_secp.pubkey, reader_kyber_pk)
+        reader_mlkem_pk, _ = centurymetadata.derive_mlkem_keypair(mlkem_seeds[i])
+        reader_id = centurymetadata.get_reader_id(reader_secp.pubkey, reader_mlkem_pk)
         reader_ids.append(reader_id)
-        _authorize_and_upload(tmp_path, writer, reader_secp, reader_kyber_pk,
+        _authorize_and_upload(tmp_path, writer, reader_secp, reader_mlkem_pk,
                               reader_id, 0, extra_env=extra_env)
 
     status, _, body = call_server(tmp_path, 'GET', '/api/v1/listbundles',

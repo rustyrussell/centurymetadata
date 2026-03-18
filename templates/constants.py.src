@@ -2,8 +2,8 @@ verheader = b"$FILE_FORMAT_HEADER"
 preamble = verheader + b"""$FILE_FORMAT_LITERAL_POSTHDR"""
 
 FULL_LENGTH = 8192
-KYBER_CT_LENGTH = 1568
-DATA_LENGTH = FULL_LENGTH - (64 + 33 + 32 + 8 + KYBER_CT_LENGTH)
+MLKEM_CT_LENGTH = 1568
+DATA_LENGTH = FULL_LENGTH - (64 + 33 + 32 + 8 + MLKEM_CT_LENGTH)
 RECORD_LENGTH = len(preamble) + FULL_LENGTH
 # BIP340 tag excludes final \0
 bip340tag = verheader[:-1]
