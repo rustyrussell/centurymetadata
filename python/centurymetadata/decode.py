@@ -1,6 +1,6 @@
 from Cryptodome.Cipher import AES
 import gzip
-from kyber_py.kyber import Kyber1024
+from kyber_py.ml_kem import ML_KEM_1024
 from secp256k1 import PrivateKey, PublicKey
 from .constants import bip340tag, preamble, DATA_LENGTH, FULL_LENGTH, KYBER_CT_LENGTH
 from .encode import get_ecdh_secret, get_aeskey
@@ -86,7 +86,7 @@ def decode(reader_secp_privkey: PrivateKey,
     sig, wkey, reader_id, gen, kyber_ct, encrypted = split_parts(after_preamble)
 
     ecdh_secret = get_ecdh_secret(reader_secp_privkey, wkey)
-    kyber_secret = Kyber1024.decaps(reader_kyber_privkey, kyber_ct)
+    kyber_secret = ML_KEM_1024.decaps(reader_kyber_privkey, kyber_ct)
     aeskey = get_aeskey(ecdh_secret, kyber_secret)
 
     comp = unaes(aeskey, encrypted)

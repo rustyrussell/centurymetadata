@@ -1,7 +1,7 @@
 from Cryptodome.Cipher import AES
 import gzip
 import hashlib
-from kyber_py.kyber import Kyber1024
+from kyber_py.ml_kem import ML_KEM_1024
 from secp256k1 import PrivateKey, PublicKey
 from .constants import bip340tag, preamble, DATA_LENGTH, KYBER_CT_LENGTH
 from typing import Callable, Iterable, Tuple, Any
@@ -43,7 +43,7 @@ def derive_kyber_keypair(bip32_privkey: bytes) -> Tuple[bytes, bytes]:
     d = bip32_privkey
     z = BIP340_tagged_hash("centurymetadata v1 kyber-z", d)
 
-    These are injected as the two random_bytes(32) calls inside Kyber1024.keygen():
+    These are injected as the two random_bytes(32) calls inside ML_KEM_1024.keygen():
     the first (_cpapke_keygen) uses d, the second uses z as the implicit rejection value.
 
     Returns (pubkey, privkey).
@@ -57,12 +57,12 @@ def derive_kyber_keypair(bip32_privkey: bytes) -> Tuple[bytes, bytes]:
     def seeded_random(n: int) -> bytes:
         return next(values)
 
-    original_random: Callable[[int], bytes] = Kyber1024.random_bytes
-    Kyber1024.random_bytes = seeded_random
+    original_random: Callable[[int], bytes] = ML_KEM_1024.random_bytes
+    ML_KEM_1024.random_bytes = seeded_random
     try:
-        pk, sk = Kyber1024.keygen()
+        pk, sk = ML_KEM_1024.keygen()
     finally:
-        Kyber1024.random_bytes = original_random
+        ML_KEM_1024.random_bytes = original_random
     return pk, sk
 
 
@@ -98,7 +98,7 @@ def encode(writer_privkey: PrivateKey,
            *pairs: Any) -> bytes:
     comp = compress(pairs)
     ecdh_secret = get_ecdh_secret(writer_privkey, reader_secp_pubkey)
-    kyber_secret, kyber_ct = Kyber1024.encaps(reader_kyber_pubkey)
+    kyber_secret, kyber_ct = ML_KEM_1024.encaps(reader_kyber_pubkey)
     aeskey = get_aeskey(ecdh_secret, kyber_secret)
     encrypted = aes(aeskey, comp)
     reader_id = get_reader_id(reader_secp_pubkey, reader_kyber_pubkey)
