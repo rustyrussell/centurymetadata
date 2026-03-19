@@ -15,7 +15,7 @@ def compress(pairs: Iterable[Tuple[str, str]]) -> bytes:
         raw += bytes(1)
         raw += bytes(contents, encoding="utf8")
         raw += bytes(1)
-    ret = gzip.compress(raw)
+    ret = gzip.compress(raw, mtime=0)
     if len(ret) > DATA_LENGTH:
         raise ValueError("Compressed length too great!")
 
