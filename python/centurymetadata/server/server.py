@@ -43,6 +43,11 @@ def bad_400(extra: str) -> None:
     exit(0)
 
 
+def bad_409(extra: str) -> None:
+    print("Status: 409\nContent-Type: text/plain\n\nConflict ({})".format(extra))
+    exit(0)
+
+
 def bad_403(extra: str) -> None:
     print("Status: 403\nContent-Type: text/plain\n\nForbidden ({})".format(extra))
     exit(0)
@@ -228,7 +233,7 @@ def authorize(reader: str, writer: str, authtoken: str) -> None:
     try:
         os.mkdir(sdir)
     except FileExistsError:
-        bad_400("READER_ID {} WRITER {} already authorized"
+        bad_409("READER_ID {} WRITER {} already authorized"
                 .format(reader, writer))
     success()
 

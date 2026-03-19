@@ -159,7 +159,7 @@ def test_authorize_duplicate(basedir: Path, keys: Dict) -> None:
     path = f'/api/v1/authorize/{reader_id}/{writer_pub}/{"0" * 64}'
     call_server(basedir, 'POST', path)
     status, _, _ = call_server(basedir, 'POST', path)
-    assert status == 400
+    assert status == 409
 
 
 def test_authorize_bad_authtoken(basedir: Path, keys: Dict) -> None:
@@ -393,7 +393,7 @@ def _authorize_and_upload(basedir: Path, writer_privkey: PrivateKey,
         f'/api/v1/authorize/{rid_hex}/{wpub_hex}/{"0" * 64}',
         extra_env=extra_env
     )
-    assert status in (200, 400)  # 400 = already authorized
+    assert status in (200, 409)  # 409 = already authorized
     record = centurymetadata.encode(writer_privkey, reader_secp.pubkey,
                                     reader_mlkem_pk, gen, ['t', 'b'])
     status, _, _ = call_server(
