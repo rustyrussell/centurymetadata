@@ -24,13 +24,13 @@ VECTORS_PATH = REPO_ROOT / "test_vectors.json"
 GENERATOR = REPO_ROOT / "tools" / "generate_test_vectors.py"
 
 sys.path.insert(0, str(REPO_ROOT / "tools"))
-from generate_test_vectors import generate_vector, CASES, TITLE, CONTENTS  # noqa: E402
+from generate_test_vectors import generate_vector, CASES  # noqa: E402
 
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture(scope="module")
-def canned_vectors():
+def canned_vectors() -> list:
     if os.environ.get("GENERATE_VECTORS"):
         subprocess.run(
             [sys.executable, str(GENERATOR)],
@@ -51,7 +51,7 @@ def canned_vectors():
     "idx,mnemonic,n",
     [(i, mnemonic, n) for i, (mnemonic, n) in enumerate(CASES)],
 )
-def test_vector_fields(idx, mnemonic, n, canned_vectors):
+def test_vector_fields(idx: int, mnemonic: str, n: int, canned_vectors: list) -> None:
     """Every computed field must match the canned vector exactly."""
     canned = canned_vectors[idx]
     fresh = generate_vector(mnemonic, n)
@@ -74,7 +74,7 @@ def test_vector_fields(idx, mnemonic, n, canned_vectors):
     "idx,mnemonic,n",
     [(i, mnemonic, n) for i, (mnemonic, n) in enumerate(CASES)],
 )
-def test_vector_record_decodes(idx, mnemonic, n, canned_vectors):
+def test_vector_record_decodes(idx: int, mnemonic: str, n: int, canned_vectors: list) -> None:
     """The RECORD in each canned vector must decode to the expected title/contents."""
     from secp256k1 import PrivateKey
     import centurymetadata
