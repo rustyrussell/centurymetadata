@@ -11,6 +11,9 @@ TOPLEVEL = "/api/v1/"
 BASEDIR = os.getenv("CENTURYMETADATA_BASEDIR", "/var/lib/centurymetadata/v1")
 SPLIT_THRESHOLD = int(os.getenv("CENTURYMETADATA_SPLIT_THRESHOLD", "1024"))
 
+# For testing, make files group-writable
+os.umask(0o002)
+
 # Directory layout under BASEDIR:
 #
 #   <dirmin>-<dirmax>/            <- directory: groups ~1024 bundles, named by
