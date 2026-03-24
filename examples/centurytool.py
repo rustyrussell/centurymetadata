@@ -205,10 +205,10 @@ if __name__ == "__main__":
             decode_data = open(args.decode[1:], "rb").read()
         else:
             decode_data = bytes.fromhex(args.decode)
-        # Strip preamble if present
-        plen = len(centurymetadata.preamble)
-        slot = decode_data[plen:] if decode_data[:plen] == centurymetadata.preamble else decode_data
-        ret = centurymetadata.decode(reader_secp_privkey, reader_mlkem_privkey, slot)
+        # Prepend preamble if not already present (slot-only input)
+        if not decode_data.startswith(centurymetadata.preamble):
+            decode_data = centurymetadata.preamble + decode_data
+        ret = centurymetadata.decode(reader_secp_privkey, reader_mlkem_privkey, decode_data)
         if ret is None:
             print("decode failed", file=sys.stderr)
             exit(1)
@@ -292,7 +292,8 @@ if __name__ == "__main__":
         if not args.raw:
             print("generation: {}".format(gen))
 
-        ret = centurymetadata.decode(reader_secp_privkey, reader_mlkem_privkey, slot)
+        ret = centurymetadata.decode(reader_secp_privkey, reader_mlkem_privkey,
+                                     centurymetadata.preamble + slot)
         if ret is None:
             print("decode failed", file=sys.stderr)
             exit(1)
