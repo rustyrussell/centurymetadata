@@ -73,6 +73,7 @@ $FILE_FORMAT_HEADER$FILE_FORMAT_LITERAL_POSTHDR
 	    <li>$BITCOIN_TYPE1</li>
 	    <li>$BITCOIN_TYPE2</li>
 	    <li>$BITCOIN_TYPE3</li>
+	    <li>$BITCOIN_TYPE4</li>
 	  </ul>
 	</div>
       </div>

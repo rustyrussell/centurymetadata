@@ -59,6 +59,8 @@ BITCOIN_TYPE2="Title: $(literal bitcoin transaction) Body: hex-encoded transacti
 
 BITCOIN_TYPE3="Title: $(literal bitcoin miniscript) Body: miniscript string"
 
+BITCOIN_TYPE4="Title: $(literal bitcoin output script descriptor) Body: descriptor string"
+
 API_PARA1="The test API endpoint can be found at $(url testapi.centurymetadata.org https://testapi.centurymetadata.org/api/v1)."
 
 API_AUTHORIZE="Entry Creation: POST /api/v1/authorize/{READER_ID}/{WRITER}/{AUTHTOKEN}"
