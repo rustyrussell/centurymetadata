@@ -64,6 +64,7 @@ The types of records accepted are as follows:
 * Title: `bitcoin transaction` Body: hex-encoded transaction
 * Title: `bitcoin miniscript` Body: miniscript string
 * Title: `bitcoin output script descriptor` Body: descriptor string
+* Title: `bitcoin wallet labels` Body: BIP-329 JSONL
 
 ## API
 

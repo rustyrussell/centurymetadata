@@ -61,6 +61,8 @@ BITCOIN_TYPE3="Title: $(literal bitcoin miniscript) Body: miniscript string"
 
 BITCOIN_TYPE4="Title: $(literal bitcoin output script descriptor) Body: descriptor string"
 
+BITCOIN_TYPE5="Title: $(literal bitcoin wallet labels) Body: BIP-329 JSONL"
+
 API_PARA1="The test API endpoint can be found at $(url testapi.centurymetadata.org https://testapi.centurymetadata.org/api/v1)."
 
 API_AUTHORIZE="Entry Creation: POST /api/v1/authorize/{READER_ID}/{WRITER}/{AUTHTOKEN}"
