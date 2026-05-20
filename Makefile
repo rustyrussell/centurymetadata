@@ -1,6 +1,6 @@
 #! /usr/bin/make
 
-default: README.md python/README.md web/index.html python/centurymetadata/constants.py
+default: README.md python/README.md web/technical.html python/centurymetadata/constants.py
 
 check:
 	cd python && uv run pytest $(PYTEST_ARGS)
@@ -16,7 +16,7 @@ check-mypy:
 TAGS:
 	etags `find . -name '*.py'`
 
-web/index.html: templates/index.html.src templates/convert-src vars Makefile
+web/technical.html: templates/technical.html.src templates/convert-src vars Makefile
 	templates/convert-src web vars $< > $@
 
 README.md: templates/README.md.src templates/convert-src vars Makefile
