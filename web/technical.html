@@ -56,7 +56,7 @@ data.  The preamble describes the binary format which follows:
 centurymetadata v1\0SIG[64]|WRITER_PUBKEY[33]|READER_ID[32]|GEN[8]|MLKEM_CT[1568]|AES[6487]
 
 SIG: BIP-340 SHA256(TAG|TAG|WRITER_PUBKEY|READER_ID|GEN|MLKEM_CT|AES)
-WRITER_PUBKEY: secp256k1 33-byte pubkey
+WRITER_PUBKEY: BIP-32 0x44315441\'/N\'/0\'
 READER_SECP_PRIVKEY: BIP-32 0x44315441\'/N\'/1\'
 READER_SECP_PUBKEY: G*READER_SECP_PRIVKEY
 READER_MLKEM_SEED_D: BIP-32 0x44315441\'/N\'/3\'
@@ -93,7 +93,7 @@ compliant.
 <code>0x44315441'/N'/0'</code> through <code>/3'</code> (<code>DATA</code>),
 where <code>N</code> starts at 0 and increments for each additional key set.
 <code>/0'</code> is the writer secp256k1 key, <code>/1'</code> is the reader
-secp256k1 key, <code>/2'</code> seeds the writer ML-KEM-1024 key, and
+secp256k1 key, <code>/2'</code> seeds the writer ML-KEM-1024 key (currently unused), and
 <code>/3'</code> seeds the reader ML-KEM-1024 key.  Each ML-KEM-1024 (FIPS 203) key pair is
 derived from the 32-byte BIP32 private key d at that path: the ML-KEM-1024
 seed is d concatenated with z, where z is the BIP-340 tagged hash of d with
