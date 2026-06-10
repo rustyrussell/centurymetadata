@@ -142,6 +142,12 @@ def test_listbundles_skeleton(basedir: Path) -> None:
     assert json.loads(body) == [{'directory': '00-ff', 'bundle': '00-ff', 'index': 0}]
 
 
+def test_fetchdepth_skeleton(basedir: Path) -> None:
+    status, _, body = call_server(basedir, 'GET', '/api/v1/fetchdepth')
+    assert status == 200
+    assert json.loads(body) == {"depth": 2}
+
+
 def test_authorize(basedir: Path, keys: Dict) -> None:
     reader_id = keys['reader_id'].hex()
     writer_pub = keys['writer'].pubkey.serialize().hex()
