@@ -1,0 +1,121 @@
+FOUNDATION REGULATIONS
+of
+CENTURY METADATA STIFTUNG
+
+(Adopted by the Board of Trustees on [Date])
+
+Preamble
+
+These Foundation Regulations (Stiftungsreglement) set forth the detailed rules for the organization, administration, and operation of Century Metadata Stiftung in accordance with the Deed of Foundation and Swiss law. They shall be interpreted in a manner that gives effect to the immutable purpose of the foundation as stated in Article 2 of the Deed of Foundation.
+
+Article 1 – Definitions
+
+1.1 “Foundation” means Century Metadata Stiftung.
+1.2 “Board” means the Board of Trustees (Stiftungsrat) of the Foundation.
+1.3 “Technical Advisory Council” means the body established under Article 4.
+1.4 “Encrypted Auxiliary Data” means small encrypted data blobs containing wallet descriptors, rights to tokenized assets, or other cryptographic recovery information as described in the Deed of Foundation.
+1.5 “Purpose” means the sole and perpetual purpose of the Foundation as defined in Article 2 of the Deed of Foundation.
+
+Article 2 – Board of Trustees
+
+2.1 Composition
+The Board shall consist of a minimum of three (3) and a maximum of seven (7) members. The Board shall strive to maintain a diverse composition with respect to geography, expertise, and background.
+
+2.2 Term of Office and Staggered Terms
+Board members shall be appointed for a term of four (4) years. Terms shall be staggered so that, as far as possible, approximately one-quarter of the Board members’ terms expire each year. Board members may be re-appointed for a maximum of three consecutive terms.
+
+2.3 Appointment and Removal
+New Board members shall be appointed by a qualified majority of the existing Board. A Board member may be removed before the end of their term only for cause, by a decision supported by at least two-thirds of the other Board members.
+
+2.4 Meetings and Decision-Making
+The Board shall meet at least twice per year. Meetings may be held in person or by electronic means. Decisions shall be taken by simple majority unless a higher threshold is required by these Regulations or the Deed of Foundation. In the event of a tie, the chairperson shall have the casting vote.
+
+2.5 Quorum
+A quorum for Board meetings shall consist of a majority of Board members, including at least one member who is not resident in the same country as the chairperson.
+
+Article 3 – Powers and Duties of the Board
+
+3.1 The Board shall be responsible for the strategic direction of the Foundation and for ensuring that the Purpose is pursued effectively and sustainably over the long term.
+
+3.2 The Board shall adopt and maintain policies on treasury management, data replication, technical standards, and operational risk management.
+
+3.3 The Board shall appoint and supervise any executive director or operational staff, if applicable.
+
+Article 4 – Technical Advisory Council
+
+4.1 The Board may establish a Technical Advisory Council consisting of independent experts in cryptography, distributed systems, Bitcoin protocol development, and related fields.
+
+4.2 The Technical Advisory Council shall provide non-binding advice to the Board on technical standards, protocol compatibility, security of retrieval mechanisms, and proposed changes to technical specifications.
+
+4.3 Members of the Technical Advisory Council shall be appointed by the Board for renewable terms of three years. They shall not have voting rights on the Board.
+
+Article 5 – Treasury and Asset Management
+
+5.1 Permitted Uses
+The Foundation’s assets, including Bitcoin holdings, may be used solely for:
+(a) Operational costs directly necessary to maintain data storage and retrieval infrastructure;
+(b) Payments to independent storage providers and replication partners;
+(c) Security measures, including multisig infrastructure and audits;
+(d) Reasonable administrative and governance costs.
+
+5.2 Bitcoin Treasury Rules
+A meaningful portion of the Foundation’s Bitcoin shall be held in multisig or timelocked wallet structures. Signers shall be selected to ensure geographic and jurisdictional diversity. Detailed custody and spending procedures shall be set out in a separate Treasury Policy approved by the Board.
+
+5.3 Expenditure Thresholds
+Any single expenditure exceeding CHF [amount in figures] ([amount in words] Swiss francs) (or equivalent in Bitcoin) or any series of related expenditures exceeding CHF [amount in figures] ([amount in words] Swiss francs) within a twelve-month period shall require:
+(a) Approval by a qualified majority of the Board; and
+(b) Where technically feasible, an on-chain proof of continued storage provision or replication activity.
+
+5.4 Investment and Preservation
+The Board shall manage the Foundation’s assets with a view to preserving real value over the long term while maintaining sufficient liquidity for operational needs. The Foundation shall not engage in speculative trading.
+
+Article 6 – Data Storage, Replication and Technical Standards
+
+6.1 The Foundation shall maintain the Encrypted Auxiliary Data in accordance with open technical standards published by the Foundation.
+
+6.2 The Foundation shall coordinate a distributed replication network. Independent operators may be compensated through Lightning or ecash payments for providing storage and retrieval services.
+
+6.3 The Foundation shall support multiple backends for data commitment and discovery (including, but not limited to, currently convenient platforms and long-term archival networks) so that the system remains functional even if any single network ceases to operate.
+
+6.4 The Foundation shall ensure that only the latest version of each encrypted blob is retained in active storage, in accordance with the principle that historical versions may be superseded.
+
+Article 7 – Transparency and Reporting
+
+7.1 The Foundation shall publish an annual report containing at least:
+(a) A summary of activities undertaken in pursuit of the Purpose;
+(b) Treasury status and movements (subject to appropriate security considerations);
+(c) Storage proofs and uptime statistics;
+(d) A list of open-source software releases.
+
+7.2 All reports shall be published on the Foundation’s website in a freely accessible format.
+
+Article 8 – Conflicts of Interest
+
+8.1 Board members and members of the Technical Advisory Council shall disclose any actual or potential conflict of interest to the Board.
+
+8.2 A person with a conflict of interest shall not participate in the discussion or decision concerning the matter giving rise to the conflict, unless the Board determines otherwise by qualified majority.
+
+Article 9 – Amendment of the Foundation Regulations
+
+9.1 These Regulations may be amended by a decision of the Board taken with a qualified majority of at least two-thirds of all Board members.
+
+9.2 Amendments that would materially affect the implementation of the immutable Purpose set out in the Deed of Foundation, or that would weaken the treasury protection or dissolution safeguards, shall additionally require ratification by the Technical Advisory Council.
+
+Article 10 – Final Provisions
+
+10.1 These Foundation Regulations enter into force upon adoption by the Board and shall remain in force until amended in accordance with Article 9.
+
+10.2 In the event of any conflict between these Regulations and the Deed of Foundation, the Deed of Foundation shall prevail.
+
+10.3 These Regulations shall be governed by Swiss law.
+
+Adopted by the Board of Trustees on [Date]
+
+_______________________________
+Chairperson of the Board
+
+_______________________________
+Member of the Board
+
+_______________________________
+Member of the Board
