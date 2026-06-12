@@ -4,12 +4,16 @@ PRODID:-//Century Metadata//Century Metadata Calendar//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
 BEGIN:VEVENT
-UID:3e3ec442-f2f3-4521-8d42-2d9caab91e40@centurymetadata.org
-DTSTAMP:20260612T033851Z
+UID:91d10099-966f-4157-9e1b-ec7652a6249d@centurymetadata.org
+DTSTAMP:20260612T040429Z
+ORGANIZER:mailto:rusty@centurymetadata.org
 SUMMARY:Century Metadata Chat (Europe)
 DTSTART:20260615T120000Z
 DTEND:20260615T123000Z
 RRULE:FREQ=WEEKLY;INTERVAL=2
-DESCRIPTION:Recurring Century Metadata Chat (Europe).
+LOCATION:https://meet.proton.me/join/id-6BVSSHGP5R#pwd-lhHPJSS3zb9A
+URL:https://meet.proton.me/join/id-6BVSSHGP5R#pwd-lhHPJSS3zb9A
+DESCRIPTION:Recurring Century Metadata Chat (Europe). Meeting link: https:/
+ /meet.proton.me/join/id-6BVSSHGP5R#pwd-lhHPJSS3zb9A
 END:VEVENT
 END:VCALENDAR
