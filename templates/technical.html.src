@@ -99,18 +99,23 @@ $FILE_FORMAT_HEADER$FILE_FORMAT_LITERAL_POSTHDR
 
 	<div class="row">
 	  <div class="col-sm">
-	    <h3>$API_INDEX</h3>
+	    <h3>$API_LISTBUNDLES</h3>
 	    <p>
-	      $API_INDEX_DESC_PARA1
+	      $API_LISTBUNDLES_DESC_PARA1
 	    </p>
 	    <p>
-	      $API_INDEX_DESC_PARA2
+	      $API_LISTBUNDLES_DESC_PARA2
 	    </p>
 	  </div>
-	
+
 	  <div class="col-sm">
-	    <h3>$API_FETCHBUNDLE</h3>
-	    $API_FETCHBUNDLE_DESC
+	    <h3>$API_FETCHXOR</h3>
+	    <p>
+	      $API_FETCHXOR_DESC_PARA1
+	    </p>
+	    <p>
+	      $API_FETCHXOR_DESC_PARA2
+	    </p>
 	  </div>
 	</div>
       </div>

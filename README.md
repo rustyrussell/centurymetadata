@@ -83,16 +83,17 @@ Updates a previously authorized writer/reader entry.  The
 `Content-Type: application/x-centurymetadata` should contain a valid
 centurymetadata file.
 
-### Entries Depth: GET /api/v1/fetchdepth
+### Listing Bundles: GET /api/v1/listbundles
 
-Since we bundle records by READER_ID prefix (e.g. all reader IDs starting with `42a3` might be bundled together), you need to know how long the prefix is: it starts as an empty prefix and increases by one hex digit as we grow, so bundles are always a reasonable size.
+Records are stored in a two-level hierarchy of directories and bundles, each bundle holding up to 1024 records.  To find your bundle, fetch the bundle listing.
 
-Returns a JSON object with member `depth` containing how many hex digits of READER_ID to use for `fetchbundle`.
+Returns a JSON array of objects, each giving the `directory` and `bundle` names (hex-range identifiers) and the bundle's 0-based `index` within its directory: the bit position to set for `fetchxor`.
 
-### Retrieving Entries: GET /api/v1/fetchbundle/{READERPREFIX}
+### Retrieving Entries: POST /api/v1/fetchxor/{DIRECTORY}
 
-This returns the given bundle, as `Content-Type: application/x-centurymetadata`, consisting of multiple back-to-back
-centurymetadata files.
+POST a 128-byte bitmask (one bit per bundle in the directory) as `Content-Type: application/octet-stream`. The server XORs together every bundle whose bit is set and returns the result as `Content-Type: application/x-centurymetadata`: always 1024 x 8192 = 8,388,608 bytes.  Setting a single bit simply returns that bundle.
+
+For *private* retrieval, query two servers with complementary bitmasks (one with your bundle's bit set, one with it cleared, all other bits matching): XOR the two responses together to recover your bundle without either server learning which one you wanted.
 
 ## Tools
 

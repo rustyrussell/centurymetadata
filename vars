@@ -78,16 +78,17 @@ API_UPDATE_DESC="Updates a previously authorized writer/reader entry.  The
 $(literal Content-Type: application/x-centurymetadata) should contain a valid
 centurymetadata file."
 
-API_INDEX="Entries Depth: GET /api/v1/fetchdepth"
+API_LISTBUNDLES="Listing Bundles: GET /api/v1/listbundles"
 
-API_INDEX_DESC_PARA1="Since we bundle records by READER_ID prefix (e.g. all reader IDs starting with $(literal 42a3) might be bundled together), you need to know how long the prefix is: it starts as an empty prefix and increases by one hex digit as we grow, so bundles are always a reasonable size."
+API_LISTBUNDLES_DESC_PARA1="Records are stored in a two-level hierarchy of directories and bundles, each bundle holding up to 1024 records.  To find your bundle, fetch the bundle listing."
 
-API_INDEX_DESC_PARA2="Returns a JSON object with member $(literal depth) containing how many hex digits of READER_ID to use for $(literal fetchbundle)."
+API_LISTBUNDLES_DESC_PARA2="Returns a JSON array of objects, each giving the $(literal directory) and $(literal bundle) names (hex-range identifiers) and the bundle's 0-based $(literal index) within its directory: the bit position to set for $(literal fetchxor)."
 
-API_FETCHBUNDLE="Retrieving Entries: GET /api/v1/fetchbundle/{READERPREFIX}"
+API_FETCHXOR="Retrieving Entries: POST /api/v1/fetchxor/{DIRECTORY}"
 
-API_FETCHBUNDLE_DESC="This returns the given bundle, as $(literal Content-Type: application/x-centurymetadata), consisting of multiple back-to-back
-centurymetadata files."
+API_FETCHXOR_DESC_PARA1="POST a 128-byte bitmask (one bit per bundle in the directory) as $(literal Content-Type: application/octet-stream). The server XORs together every bundle whose bit is set and returns the result as $(literal Content-Type: application/x-centurymetadata): always 1024 x 8192 = 8,388,608 bytes.  Setting a single bit simply returns that bundle."
+
+API_FETCHXOR_DESC_PARA2="For $(bold private) retrieval, query two servers with complementary bitmasks (one with your bundle's bit set, one with it cleared, all other bits matching): XOR the two responses together to recover your bundle without either server learning which one you wanted."
 
 TOOLS_PARA1="There is an experimental Python package to encode and decode
 centurymetadata files in the $(url "GitHub repository" https://github.com/rustyrussell/centurymetadata)"
