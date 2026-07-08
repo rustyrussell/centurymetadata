@@ -75,7 +75,7 @@ def test_vector_fields(idx: int, mnemonic: str, n: int, canned_vectors: list) ->
     [(i, mnemonic, n) for i, (mnemonic, n) in enumerate(CASES)],
 )
 def test_vector_record_decodes(idx: int, mnemonic: str, n: int, canned_vectors: list) -> None:
-    """The RECORD in each canned vector must decode to the expected title/contents."""
+    """The RECORD in each canned vector must decode to the expected type/name/contents."""
     from secp256k1 import PrivateKey
     import centurymetadata
 
@@ -89,4 +89,4 @@ def test_vector_record_decodes(idx: int, mnemonic: str, n: int, canned_vectors: 
 
     decoded = centurymetadata.decode(reader_secp_key, reader_mlkem_sk, record)
     assert decoded is not None, "centurymetadata.decode() returned None"
-    assert decoded == [(pv["TITLE"]["value"], pv["CONTENTS"]["value"])]
+    assert decoded == [(pv["TYPE"]["value"], pv["NAME"]["value"], pv["CONTENTS"]["value"])]

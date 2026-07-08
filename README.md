@@ -35,10 +35,11 @@ MLKEM_SECRET: ML-KEM-1024.Decaps(MLKEM_CT, READER_MLKEM_PRIVKEY)
 ECDH_SECRET: EC Diffie-Hellman of WRITER_PUBKEY and READER_SECP_PRIVKEY
 AESKEY: SHA256(ECDH_SECRET|MLKEM_SECRET)
 AES: CTR mode (starting 0, nonce 0) using AESKEY of DATA
-DATA: gzip([TITLE\0CONTENTS\0]+), padded with 0 bytes to 6487\0
+DATA: gzip([TYPE\0NAME\0CONTENTS\0]+), padded with 0 bytes to 6487\0
 ```
 
-The data itself is a series of NUL-separated title, contents pairs.
+The data itself is a series of NUL-separated type, name, contents
+triples.
 Obviously this cannot be validated on the production server, but the
 test server (which only allows known keys) will check the file is
 compliant.
@@ -60,11 +61,11 @@ the record from your own writer key can be trusted.
 
 The types of records accepted are as follows:
 
-* Title: `bitcoin psbt`, Body: base64-encoded PSBT
-* Title: `bitcoin transaction` Body: hex-encoded transaction
-* Title: `bitcoin miniscript` Body: miniscript string
-* Title: `bitcoin output script descriptor` Body: descriptor string
-* Title: `bitcoin wallet labels` Body: BIP-329 JSONL
+* Type: `bitcoin psbt`, Body: base64-encoded PSBT
+* Type: `bitcoin transaction` Body: hex-encoded transaction
+* Type: `bitcoin miniscript` Body: miniscript string
+* Type: `bitcoin output script descriptor` Body: descriptor string
+* Type: `bitcoin wallet labels` Body: BIP-329 JSONL
 
 ## API
 

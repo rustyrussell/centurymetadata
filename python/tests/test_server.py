@@ -180,7 +180,7 @@ def test_update(basedir: Path, keys: Dict) -> None:
 
     record = centurymetadata.encode(
         keys['writer'], keys['reader_secp'].pubkey, keys['reader_mlkem_pk'],
-        0, ['title', 'body']
+        0, ['type', 'name', 'body']
     )
     status, _, _ = call_server(
         basedir, 'POST', '/api/v1/update',
@@ -191,7 +191,7 @@ def test_update(basedir: Path, keys: Dict) -> None:
 def test_update_unauthorized(basedir: Path, keys: Dict) -> None:
     record = centurymetadata.encode(
         keys['writer'], keys['reader_secp'].pubkey, keys['reader_mlkem_pk'],
-        0, ['title', 'body']
+        0, ['type', 'name', 'body']
     )
     status, _, _ = call_server(
         basedir, 'POST', '/api/v1/update',
@@ -207,7 +207,7 @@ def test_update_duplicate_gen(basedir: Path, keys: Dict) -> None:
 
     record = centurymetadata.encode(
         keys['writer'], keys['reader_secp'].pubkey, keys['reader_mlkem_pk'],
-        0, ['title', 'body']
+        0, ['type', 'name', 'body']
     )
     call_server(basedir, 'POST', '/api/v1/update',
                 body=record, content_type='application/x-centurymetadata')
@@ -225,7 +225,7 @@ def test_fetchxor_contains_record(basedir: Path, keys: Dict) -> None:
 
     record = centurymetadata.encode(
         keys['writer'], keys['reader_secp'].pubkey, keys['reader_mlkem_pk'],
-        0, ['title', 'body']
+        0, ['type', 'name', 'body']
     )
     call_server(basedir, 'POST', '/api/v1/update',
                 body=record, content_type='application/x-centurymetadata')
@@ -251,7 +251,7 @@ def test_fetchxor_contains_record(basedir: Path, keys: Dict) -> None:
                 keys['reader_secp'], keys['reader_mlkem_sk'],
                 centurymetadata.preamble + slot
             )
-            assert decoded == [('title', 'body')]
+            assert decoded == [('type', 'name', 'body')]
             break
     assert found
 
@@ -265,7 +265,7 @@ def test_fetchxor_xor_cancels(basedir: Path, keys: Dict) -> None:
 
     record = centurymetadata.encode(
         keys['writer'], keys['reader_secp'].pubkey, keys['reader_mlkem_pk'],
-        0, ['title', 'body']
+        0, ['type', 'name', 'body']
     )
     call_server(basedir, 'POST', '/api/v1/update',
                 body=record, content_type='application/x-centurymetadata')
@@ -304,7 +304,7 @@ def test_tool_encode_check_decode(tmp_path: Path) -> None:
 
     result = _run_tool(f'--writer-secret={writer_hex}',
                        f'--reader-secret={reader_secret}',
-                       '--encode', 'mytitle', 'mybody',
+                       '--encode', 'mytype', 'myname', 'mybody',
                        '--raw')
     assert result.returncode == 0
     Path(enc_file).write_bytes(result.stdout)
@@ -320,7 +320,8 @@ def test_tool_encode_check_decode(tmp_path: Path) -> None:
                        '--raw', '--decode', f'@{enc_file}')
     assert result.returncode == 0
     out = result.stdout.decode()
-    assert 'mytitle' in out
+    assert 'mytype' in out
+    assert 'myname' in out
     assert 'mybody' in out
 
 
@@ -334,7 +335,7 @@ def test_tool_fetch(http_server: Tuple[str, Path], tmp_path: Path) -> None:
     # Encode
     result = _run_tool(f'--writer-secret={writer_hex}',
                        f'--reader-secret={reader_secret}',
-                       '--encode', 'mytitle', 'mybody',
+                       '--encode', 'mytype', 'myname', 'mybody',
                        '--raw')
     assert result.returncode == 0
     encoded = result.stdout
@@ -375,7 +376,8 @@ def test_tool_fetch(http_server: Tuple[str, Path], tmp_path: Path) -> None:
                        '--raw', '--decode', f'@{enc_file}')
     assert result.returncode == 0
     out = result.stdout.decode()
-    assert 'mytitle' in out
+    assert 'mytype' in out
+    assert 'myname' in out
     assert 'mybody' in out
 
 
@@ -395,7 +397,7 @@ def _authorize_and_upload(basedir: Path, writer_privkey: PrivateKey,
     )
     assert status in (200, 409)  # 409 = already authorized
     record = centurymetadata.encode(writer_privkey, reader_secp.pubkey,
-                                    reader_mlkem_pk, gen, ['t', 'b'])
+                                    reader_mlkem_pk, gen, ['t', 'n', 'b'])
     status, _, _ = call_server(
         basedir, 'POST', '/api/v1/update',
         body=record, content_type='application/x-centurymetadata',
