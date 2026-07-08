@@ -178,15 +178,13 @@ if __name__ == "__main__":
         reader_secp_pubkey = reader_secp_privkey.pubkey
         reader_mlkem_pubkey, reader_mlkem_privkey = centurymetadata.derive_mlkem_keypair(r_mlkem_seed)
         reader_id = centurymetadata.get_reader_id(reader_secp_pubkey, reader_mlkem_pubkey)
-        if not args.raw:
-            print("reader_id: {}".format(reader_id.hex()))
+        print("reader_id: {}".format(reader_id.hex()), file=sys.stderr)
 
     if args.reader_secret:
         reader_secp_privkey, reader_mlkem_pubkey, reader_mlkem_privkey = parse_reader_secret(args.reader_secret)
         reader_secp_pubkey = reader_secp_privkey.pubkey
         reader_id = centurymetadata.get_reader_id(reader_secp_pubkey, reader_mlkem_pubkey)
-        if not args.raw:
-            print("Derived reader_id: {}".format(reader_id.hex()))
+        print("Derived reader_id: {}".format(reader_id.hex()), file=sys.stderr)
     elif args.reader:
         reader_secp_pubkey, reader_mlkem_pubkey = parse_reader_public(args.reader)
         reader_id = centurymetadata.get_reader_id(reader_secp_pubkey, reader_mlkem_pubkey)
@@ -224,8 +222,7 @@ if __name__ == "__main__":
         if writer_privkey is None:
             print("Needs --writer-secret or --bip39", file=sys.stderr)
             exit(1)
-        if not args.raw:
-            print("Writer pubkey: {}".format(writer_privkey.pubkey.serialize().hex()))
+        print("Writer pubkey: {}".format(writer_privkey.pubkey.serialize().hex()), file=sys.stderr)
         ret = centurymetadata.encode(writer_privkey, reader_secp_pubkey, reader_mlkem_pubkey,
                                      args.generation,
                                      *args.encode)
