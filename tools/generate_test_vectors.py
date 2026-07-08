@@ -376,6 +376,9 @@ def generate_vector(mnemonic: str, n: int) -> dict:
         + CONTENTS.encode("utf-8") + b"\x00"
     )
     compressed = gzip.compress(raw_plaintext, mtime=0)
+    # See centurymetadata.encode.compress(): force the OS byte so DATA
+    # is reproducible regardless of the local zlib build.
+    compressed = compressed[:9] + b"\xff" + compressed[10:]
     data_padded = compressed + b"\x00" * (DATA_LENGTH - len(compressed))
     assert len(data_padded) == DATA_LENGTH
     results["DATA"] = _r(

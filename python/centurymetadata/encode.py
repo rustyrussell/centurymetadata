@@ -18,6 +18,11 @@ def compress(triples: Iterable[Tuple[str, str, str]]) -> bytes:
         raw += bytes(contents, encoding="utf8")
         raw += bytes(1)
     ret = gzip.compress(raw, mtime=0)
+    # gzip.compress()'s mtime=0 fast path hands the whole header to zlib,
+    # which stamps the OS byte (offset 9) with whatever the local zlib
+    # build defaults to (e.g. 3="Unix" vs 255="unknown"). Force it fixed
+    # so DATA is byte-for-byte reproducible across platforms.
+    ret = ret[:9] + b'\xff' + ret[10:]
     if len(ret) > DATA_LENGTH:
         raise ValueError("Compressed length too great!")
 
