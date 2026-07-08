@@ -7,11 +7,13 @@ from .constants import bip340tag, preamble, DATA_LENGTH, MLKEM_CT_LENGTH
 from typing import Callable, Iterable, Tuple, Any
 
 
-def compress(pairs: Iterable[Tuple[str, str]]) -> bytes:
-    """Compress the pairs, padding with zeroes to DATA_LENGTH, raising an exception if the result is too large"""
+def compress(triples: Iterable[Tuple[str, str, str]]) -> bytes:
+    """Compress the triples, padding with zeroes to DATA_LENGTH, raising an exception if the result is too large"""
     raw = bytes()
-    for title, contents in pairs:
-        raw += bytes(title, encoding="utf8")
+    for rtype, name, contents in triples:
+        raw += bytes(rtype, encoding="utf8")
+        raw += bytes(1)
+        raw += bytes(name, encoding="utf8")
         raw += bytes(1)
         raw += bytes(contents, encoding="utf8")
         raw += bytes(1)
@@ -95,8 +97,8 @@ def encode(writer_privkey: PrivateKey,
            reader_secp_pubkey: PublicKey,
            reader_mlkem_pubkey: bytes,
            generation: int,
-           *pairs: Any) -> bytes:
-    comp = compress(pairs)
+           *triples: Any) -> bytes:
+    comp = compress(triples)
     ecdh_secret = get_ecdh_secret(writer_privkey, reader_secp_pubkey)
     mlkem_secret, mlkem_ct = ML_KEM_1024.encaps(reader_mlkem_pubkey)
     aeskey = get_aeskey(ecdh_secret, mlkem_secret)

@@ -7,18 +7,18 @@ from .encode import get_ecdh_secret, get_aeskey
 from typing import Tuple, List, Optional
 
 
-def decompress(comp: bytes) -> Optional[List[Tuple[str, str]]]:
-    """Decompress into pairs"""
+def decompress(comp: bytes) -> Optional[List[Tuple[str, str, str]]]:
+    """Decompress into type, name, contents triples"""
     uncomp = gzip.decompress(comp)
     # Split by 0 byte
     fields = uncomp.split(sep=bytes(1))
     # That gives us a final empty field, which we ignore...
-    if len(fields) != 0 and len(fields) % 2 != 1:
+    if len(fields) != 0 and len(fields) % 3 != 1:
         return None
 
     ret = []
-    for i in range(0, len(fields) - 1, 2):
-        ret.append((fields[i].decode('utf8'), fields[i + 1].decode('utf8')))
+    for i in range(0, len(fields) - 1, 3):
+        ret.append((fields[i].decode('utf8'), fields[i + 1].decode('utf8'), fields[i + 2].decode('utf8')))
     return ret
 
 
@@ -75,7 +75,7 @@ def deconstruct(cmetadata: bytes) -> Tuple[PublicKey, bytes, int, bytes]:
 
 def decode(reader_secp_privkey: PrivateKey,
            reader_mlkem_privkey: bytes,
-           cmetadata: bytes) -> Optional[List[Tuple[str, str]]]:
+           cmetadata: bytes) -> Optional[List[Tuple[str, str, str]]]:
     if not cmetadata.startswith(preamble):
         return None
     after_preamble = cmetadata[len(preamble):]

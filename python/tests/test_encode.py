@@ -12,26 +12,26 @@ import string
 
 
 def test_compress() -> None:
-    pairs = [('a', 'b')]
-    ret = compress(pairs)
+    triples = [('a', 'b', 'c')]
+    ret = compress(triples)
     assert len(ret) == DATA_LENGTH
-    assert gzip.decompress(ret) == bytes((0x61, 0, 0x62, 0))
+    assert gzip.decompress(ret) == bytes((0x61, 0, 0x62, 0, 0x63, 0))
 
-    pairs = [('a', 'b'), ('c', 'd')]
-    ret = compress(pairs)
+    triples = [('a', 'b', 'c'), ('d', 'e', 'f')]
+    ret = compress(triples)
     assert len(ret) == DATA_LENGTH
-    assert gzip.decompress(ret) == bytes((0x61, 0, 0x62, 0, 0x63, 0, 0x64, 0))
+    assert gzip.decompress(ret) == bytes((0x61, 0, 0x62, 0, 0x63, 0, 0x64, 0, 0x65, 0, 0x66, 0))
 
     # This compresses well
-    pairs = [('a', 'b'), ('c', 'd' * 90000)]
-    ret = compress(pairs)
+    triples = [('a', 'b', 'c'), ('d', 'e', 'f' * 90000)]
+    ret = compress(triples)
     assert len(ret) == DATA_LENGTH
-    assert gzip.decompress(ret) == bytes((0x61, 0, 0x62, 0, 0x63, 0)) + bytes("d", encoding="utf8") * 90000 + bytes(1)
+    assert gzip.decompress(ret) == bytes((0x61, 0, 0x62, 0, 0x63, 0, 0x64, 0, 0x65, 0)) + bytes("f", encoding="utf8") * 90000 + bytes(1)
 
-    # Test too-long pairs.
-    pairs = [('a', ''.join(random.choices(string.printable, k=90000)))]
+    # Test too-long triples.
+    triples = [('a', 'b', ''.join(random.choices(string.printable, k=90000)))]
     with pytest.raises(ValueError, match="length too great"):
-        compress(pairs)
+        compress(triples)
 
 
 def test_aes() -> None:
@@ -119,6 +119,6 @@ def test_encode_complete() -> None:
     reader_mlkem_pubkey, _ = ML_KEM_1024.keygen()
 
     complete = encode(writer_privkey, reader_secp_privkey.pubkey, reader_mlkem_pubkey, 0,
-                      ['a', 'aaaaaa'], ['b', 'bbbbbb'])
+                      ['a', 'name-a', 'aaaaaa'], ['b', 'name-b', 'bbbbbb'])
     assert len(complete) == len(preamble) + 8192
     assert complete.startswith(preamble)

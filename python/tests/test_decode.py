@@ -11,5 +11,5 @@ def test_decode_complete() -> None:
     reader_mlkem_pubkey, reader_mlkem_privkey = ML_KEM_1024.keygen()
 
     complete = encode(writer_privkey, reader_secp_privkey.pubkey, reader_mlkem_pubkey, 0,
-                      ['a', 'aaaaaa'], ['b', 'bbbbbb'])
-    assert decode(reader_secp_privkey, reader_mlkem_privkey, complete) == [('a', 'aaaaaa'), ('b', 'bbbbbb')]
+                      ['a', 'name-a', 'aaaaaa'], ['b', 'name-b', 'bbbbbb'])
+    assert decode(reader_secp_privkey, reader_mlkem_privkey, complete) == [('a', 'name-a', 'aaaaaa'), ('b', 'name-b', 'bbbbbb')]

@@ -152,8 +152,8 @@ if __name__ == "__main__":
     parser.add_argument("--generation", type=int, help="Generation number", default=0)
     parser.add_argument("--raw", help="Output raw binary, suppress other output", action="store_true")
     parser.add_argument("--decode", help='hex string to decode (@ means read raw binary filename)')
-    parser.add_argument("--encode", help='title body pair to encode (@ means read filename)',
-                        nargs=2, action="append", default=None)
+    parser.add_argument("--encode", help='type name body triple to encode (@ means read filename)',
+                        nargs=3, action="append", default=None)
     parser.add_argument("--check", help='check signature and print information (@ means read raw binary filename)')
     parser.add_argument("--fetch", help='fetch the record for the given reader (outputs raw/hex)',
                         action="store_true")
@@ -210,8 +210,9 @@ if __name__ == "__main__":
         if ret is None:
             print("decode failed", file=sys.stderr)
             exit(1)
-        for title, body in ret:
-            print(title)
+        for rtype, name, body in ret:
+            print(rtype)
+            print(name)
             print(body)
             print()
 
@@ -294,7 +295,8 @@ if __name__ == "__main__":
         if ret is None:
             print("decode failed", file=sys.stderr)
             exit(1)
-        for title, body in ret:
-            print("{}:".format(title))
+        for rtype, name, body in ret:
+            print("{}:".format(rtype))
+            print(name)
             print(body)
             print()

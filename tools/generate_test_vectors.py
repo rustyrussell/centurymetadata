@@ -16,7 +16,7 @@ Three test cases:
   2. "abandon abandon ... about", N=1
   3. "zoo zoo ... abstract",      N=2^31-1  (max hardened BIP-32 index)
 
-All three use: TITLE="text", CONTENTS="This is a test string", GEN=0.
+All three use: TYPE="text", NAME="note", CONTENTS="This is a test string", GEN=0.
 
 Determinism notes (test-vector-only choices, not protocol requirements):
   GZIP_MTIME=0          suppress embedded timestamp in gzip header
@@ -66,7 +66,7 @@ PREAMBLE = (
     + b"ECDH_SECRET: EC Diffie-Hellman of WRITER_PUBKEY and READER_SECP_PRIVKEY\n"
     + b"AESKEY: SHA256(ECDH_SECRET|MLKEM_SECRET)\n"
     + b"AES: CTR mode (starting 0, nonce 0) using AESKEY of DATA\n"
-    + b"DATA: gzip([TITLE\\0CONTENTS\\0]+), padded with 0 bytes to 6487\x00"
+    + b"DATA: gzip([TYPE\\0NAME\\0CONTENTS\\0]+), padded with 0 bytes to 6487\x00"
 )
 
 # ── Test case definitions ─────────────────────────────────────────────────────
@@ -88,7 +88,8 @@ CASES = [
     ),
 ]
 
-TITLE = "text"
+TYPE = "text"
+NAME = "note"
 CONTENTS = "This is a test string"
 GEN = 0
 
@@ -184,9 +185,12 @@ def generate_vector(mnemonic: str, n: int) -> dict:
         "GEN": _pv(
             "Record generation counter (8-byte big-endian in the wire format).",
             GEN),
-        "TITLE": _pv(
-            "Record title, encoded as UTF-8 followed by a NUL byte in DATA.",
-            TITLE),
+        "TYPE": _pv(
+            "Record type, encoded as UTF-8 followed by a NUL byte in DATA.",
+            TYPE),
+        "NAME": _pv(
+            "Record name, encoded as UTF-8 followed by a NUL byte in DATA.",
+            NAME),
         "CONTENTS": _pv(
             "Record body, encoded as UTF-8 followed by a NUL byte in DATA.",
             CONTENTS),
@@ -367,14 +371,16 @@ def generate_vector(mnemonic: str, n: int) -> dict:
 
     # DATA
     raw_plaintext = (
-        TITLE.encode("utf-8") + b"\x00" + CONTENTS.encode("utf-8") + b"\x00"
+        TYPE.encode("utf-8") + b"\x00"
+        + NAME.encode("utf-8") + b"\x00"
+        + CONTENTS.encode("utf-8") + b"\x00"
     )
     compressed = gzip.compress(raw_plaintext, mtime=0)
     data_padded = compressed + b"\x00" * (DATA_LENGTH - len(compressed))
     assert len(data_padded) == DATA_LENGTH
     results["DATA"] = _r(
-        f'"DATA: gzip([TITLE\\0CONTENTS\\0]+), padded with 0 bytes to {DATA_LENGTH}". '
-        f"gzip(TITLE||NUL||CONTENTS||NUL, mtime=0) = {len(compressed)} bytes, "
+        f'"DATA: gzip([TYPE\\0NAME\\0CONTENTS\\0]+), padded with 0 bytes to {DATA_LENGTH}". '
+        f"gzip(TYPE||NUL||NAME||NUL||CONTENTS||NUL, mtime=0) = {len(compressed)} bytes, "
         f"zero-padded to {DATA_LENGTH}. This is the AES plaintext.",
         data_padded.hex())
 
@@ -410,7 +416,7 @@ def generate_vector(mnemonic: str, n: int) -> dict:
         f"|| MLKEM_CT[{MLKEM_CT_LENGTH}] || AES[{DATA_LENGTH}]. "
         f"Total {len(record)} bytes. "
         "Verify: centurymetadata.decode(READER_SECP_PRIVKEY, READER_MLKEM_PRIVKEY, RECORD) "
-        f'== [("{TITLE}", "{CONTENTS}")].',
+        f'== [("{TYPE}", "{NAME}", "{CONTENTS}")].',
         record.hex())
 
     mnemonic_short = mnemonic[:18] + "..." if len(mnemonic) > 18 else mnemonic

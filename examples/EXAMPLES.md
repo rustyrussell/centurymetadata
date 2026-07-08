@@ -11,15 +11,15 @@ The `--reader-secret` argument takes two 32-byte hex secrets separated by
 `/`: the secp256k1 private key, then the ML-KEM seed (used with
 `derive_mlkem_keypair` to produce the ML-KEM keypair deterministically).
 
-Let's encode two records, one titled `text`, contents `text one`, the
-second also titled `text` and contents `text two`.
+Let's encode two records, both of type `text`.  The first named `one`,
+contents `text one`, the second named `two` with contents `text two`.
 
 Here's how we'd do this with the example tool:
 
 ```
 $ ./examples/centurytool.py --writer-secret=0101010101010101010101010101010101010101010101010101010101010101 \
   --reader-secret=0202020202020202020202020202020202020202020202020202020202020202/0202020202020202020202020202020202020202020202020202020202020202 \
-  --encode text 'text one' --encode text 'text two' --raw > /tmp/encfile
+  --encode text one 'text one' --encode text two 'text two' --raw > /tmp/encfile
 Derived reader_id: 86bc303b5a3a42d81319561bab832beb13bbcc66951893398db1150a5da26b9b
 Writer pubkey: 031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f
 ```
@@ -43,7 +43,7 @@ reader_mlkem_pubkey, reader_mlkem_privkey = centurymetadata.derive_mlkem_keypair
 
 # Generation is 0, as this is our first data
 enc = centurymetadata.encode(writer_privkey, reader_secp_pubkey, reader_mlkem_pubkey,
-                             0, ('text', 'text one'), ('text', 'text two'))
+                             0, ('text', 'one', 'text one'), ('text', 'two', 'text two'))
 ```
 
 If you are encoding for someone else (you have their public keys, not their
@@ -86,7 +86,7 @@ We need a version with a greater generation number, so let's generate it:
 ```
 $ ./examples/centurytool.py --writer-secret=0101010101010101010101010101010101010101010101010101010101010101 \
   --reader-secret=0202020202020202020202020202020202020202020202020202020202020202/0202020202020202020202020202020202020202020202020202020202020202 \
-  --encode text 'text one' --encode text 'text two' --generation 2 --raw > /tmp/encfile1
+  --encode text one 'text one' --encode text two 'text two' --generation 2 --raw > /tmp/encfile1
 $ curl --data-binary @/tmp/encfile1 -H 'Content-Type: application/x-centurymetadata' http://testapi.centurymetadata.org/api/v1/update
 Success
 ```
@@ -150,9 +150,11 @@ With the reader key, we can decrypt it:
   --reader-secret=0202020202020202020202020202020202020202020202020202020202020202/0202020202020202020202020202020202020202020202020202020202020202 \
   --raw --decode @/tmp/encdata
 text
+one
 text one
 
 text
+two
 text two
 
 ```
