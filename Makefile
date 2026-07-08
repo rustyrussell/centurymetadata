@@ -13,6 +13,11 @@ check-flake8:
 check-mypy:
 	cd python && uv run mypy --ignore-missing-imports --disallow-untyped-defs --disallow-incomplete-defs centurymetadata tests
 
+PORT ?= 8199
+
+localserver:
+	cd python && uv run python3 ../tools/localserver.py --port=$(PORT)
+
 TAGS:
 	etags `find . -name '*.py'`
 
