@@ -13,6 +13,13 @@ check-flake8:
 check-mypy:
 	cd python && uv run mypy --ignore-missing-imports --disallow-untyped-defs --disallow-incomplete-defs centurymetadata tests
 
+# Catches vars/templates drifting out of sync with the checked-in generated files.
+check-docs:
+	$(MAKE) default
+	git diff --exit-code README.md python/README.md web/technical.html python/centurymetadata/constants.py
+
+ci: check check-source check-docs
+
 PORT ?= 8199
 
 localserver:
