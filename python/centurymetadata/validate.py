@@ -13,6 +13,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from embit import bip32
 from embit.psbt import PSBT
 from embit.script import Script
+from embit.transaction import Transaction
 
 Triple = Tuple[str, str, str]
 ValidatorFn = Callable[[str], Optional[str]]
@@ -123,6 +124,20 @@ def validate_bitcoin_psbt(contents: str) -> Optional[str]:
 
 
 _VALIDATORS["bitcoin psbt"] = validate_bitcoin_psbt
+
+
+# ── bitcoin transaction ───────────────────────────────────────────────────────
+
+def validate_bitcoin_transaction(contents: str) -> Optional[str]:
+    """Validate CONTENTS as a hex-encoded Bitcoin transaction."""
+    try:
+        Transaction.from_string(contents)
+    except Exception as e:
+        return "not a valid transaction: {}".format(e)
+    return None
+
+
+_VALIDATORS["bitcoin transaction"] = validate_bitcoin_transaction
 
 
 def validate_triples(triples: List[Triple]) -> Optional[str]:
