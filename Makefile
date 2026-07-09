@@ -21,9 +21,11 @@ check-docs:
 ci: check check-source check-docs
 
 PORT ?= 8199
+TESTMODE ?=
 
+# make localserver TESTMODE=1  -- only allow known test identities, like testapi.centurymetadata.org
 localserver:
-	cd python && uv run python3 ../tools/localserver.py --port=$(PORT)
+	cd python && uv run python3 ../tools/localserver.py --port=$(PORT) $(if $(TESTMODE),--test-mode)
 
 TAGS:
 	etags `find . -name '*.py'`

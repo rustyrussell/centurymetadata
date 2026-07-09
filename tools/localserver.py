@@ -8,6 +8,10 @@ interrupted.
 Run from the python/ subdirectory (which has the venv and dependencies):
 
     cd python && uv run python ../tools/localserver.py
+
+Add --test-mode to only allow known test identities and validate record
+content, matching testapi.centurymetadata.org (see "Known Test Keys" in
+README.md). Equivalently: make localserver TESTMODE=1
 """
 import argparse
 import shutil
