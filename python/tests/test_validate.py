@@ -127,3 +127,32 @@ def test_psbt_rejects_wrong_magic() -> None:
 def test_psbt_rejects_truncated() -> None:
     valid = _make_psbt()
     assert validate.validate_bitcoin_psbt(valid[:len(valid) // 2]) is not None
+
+
+# ── bitcoin transaction ───────────────────────────────────────────────────────
+
+def _make_tx_hex() -> str:
+    from embit.script import Script
+    from embit.transaction import Transaction, TransactionInput, TransactionOutput
+
+    tx = Transaction(
+        vin=[TransactionInput(bytes(32), 0)],
+        vout=[TransactionOutput(100000, Script(bytes.fromhex('0014' + '00' * 20)))],
+    )
+    return tx.serialize().hex()
+
+
+def test_transaction_valid_accepted() -> None:
+    assert validate.validate_bitcoin_transaction(_make_tx_hex()) is None
+
+
+def test_transaction_rejects_non_hex() -> None:
+    assert validate.validate_bitcoin_transaction("not hex at all") is not None
+
+
+def test_transaction_rejects_truncated() -> None:
+    assert validate.validate_bitcoin_transaction("deadbeef") is not None
+
+
+def test_transaction_rejects_trailing_garbage() -> None:
+    assert validate.validate_bitcoin_transaction(_make_tx_hex() + "ff") is not None

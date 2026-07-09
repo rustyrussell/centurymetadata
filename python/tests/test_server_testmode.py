@@ -148,6 +148,23 @@ def test_update_unrecognized_type_rejected(basedir: Path) -> None:
     assert b'Unrecognized TYPE' in body
 
 
+def test_update_bad_transaction_rejected(basedir: Path) -> None:
+    reader_id, writer_privkey, reader_secp_pubkey, reader_mlkem_pubkey = _first_half_full_keys()
+    _authorize(basedir, reader_id, writer_privkey.pubkey.serialize().hex())
+
+    record = centurymetadata.encode(
+        writer_privkey, reader_secp_pubkey, reader_mlkem_pubkey, 0,
+        ('bitcoin transaction', 'not-a-tx', 'not hex at all')
+    )
+    status, _, body = call_server(
+        basedir, 'POST', '/api/v1/update',
+        body=record, content_type='application/x-centurymetadata',
+        extra_env=TEST_MODE_ENV
+    )
+    assert status == 400
+    assert b'not a valid transaction' in body
+
+
 def test_update_bad_psbt_rejected(basedir: Path) -> None:
     reader_id, writer_privkey, reader_secp_pubkey, reader_mlkem_pubkey = _first_half_full_keys()
     _authorize(basedir, reader_id, writer_privkey.pubkey.serialize().hex())
