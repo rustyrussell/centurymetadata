@@ -116,9 +116,12 @@ def test_update_compliant_record_accepted(basedir: Path) -> None:
     reader_id, writer_privkey, reader_secp_pubkey, reader_mlkem_pubkey = _first_half_full_keys()
     _authorize(basedir, reader_id, writer_privkey.pubkey.serialize().hex())
 
+    labels = ('{"type": "tx", "ref": '
+              '"f91d0a8a78462bc59398f2c5d7a84fcff491c26ba54c4833478b202796c8aafd", '
+              '"label": "coffee"}')
     record = centurymetadata.encode(
         writer_privkey, reader_secp_pubkey, reader_mlkem_pubkey, 0,
-        ('bitcoin wallet labels', 'labels', '{"type": "tx", "ref": "deadbeef", "label": "coffee"}')
+        ('bitcoin wallet labels', 'labels', labels)
     )
     status, _, body = call_server(
         basedir, 'POST', '/api/v1/update',
