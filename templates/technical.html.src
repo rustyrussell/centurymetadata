@@ -76,6 +76,9 @@ $FILE_FORMAT_HEADER$FILE_FORMAT_LITERAL_POSTHDR
 	    <li>$BITCOIN_TYPE4</li>
 	    <li>$BITCOIN_TYPE5</li>
 	  </ul>
+	  <p>
+	    $BITCOIN_PARA3
+	  </p>
 	</div>
       </div>
 
@@ -119,7 +122,24 @@ $FILE_FORMAT_HEADER$FILE_FORMAT_LITERAL_POSTHDR
 	  </div>
 	</div>
       </div>
-	
+
+      <div class="row">
+	<h2>Known Test Keys</h2>
+	<div class="col-sm">
+	  <p>
+	    $KNOWNKEYS_PARA1
+	  </p>
+	</div>
+	<div class="col-sm">
+	  <p>
+	    $KNOWNKEYS_PARA2
+	  </p>
+	  <p>
+	    $KNOWNKEYS_PARA3
+	  </p>
+	</div>
+      </div>
+
       <div class="row" style="margin-top: 50px;">
 	<h2>Tools</h2>
 	<div class="col-sm">
