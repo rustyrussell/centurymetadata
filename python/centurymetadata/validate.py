@@ -11,6 +11,7 @@ import re
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from embit import bip32
+from embit.psbt import PSBT
 from embit.script import Script
 
 Triple = Tuple[str, str, str]
@@ -108,6 +109,20 @@ def validate_bip329_labels(contents: str) -> Optional[str]:
 
 
 _VALIDATORS["bitcoin wallet labels"] = validate_bip329_labels
+
+
+# ── bitcoin psbt ──────────────────────────────────────────────────────────────
+
+def validate_bitcoin_psbt(contents: str) -> Optional[str]:
+    """Validate CONTENTS as a base64-encoded PSBT (BIP-174)."""
+    try:
+        PSBT.from_string(contents)
+    except Exception as e:
+        return "not a valid PSBT: {}".format(e)
+    return None
+
+
+_VALIDATORS["bitcoin psbt"] = validate_bitcoin_psbt
 
 
 def validate_triples(triples: List[Triple]) -> Optional[str]:

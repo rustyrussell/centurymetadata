@@ -89,3 +89,41 @@ def test_bip329_ignores_blank_lines() -> None:
     assert validate.validate_bip329_labels(
         '{{"type": "tx", "ref": "{}"}}\n\n'.format(VALID_TXID)
     ) is None
+
+
+# ── bitcoin psbt ──────────────────────────────────────────────────────────────
+
+def _make_psbt() -> str:
+    from embit.psbt import PSBT
+    from embit.script import Script
+    from embit.transaction import Transaction, TransactionInput, TransactionOutput
+
+    tx = Transaction(
+        vin=[TransactionInput(bytes(32), 0)],
+        vout=[TransactionOutput(100000, Script(bytes.fromhex('0014' + '00' * 20)))],
+    )
+    return PSBT(tx).to_string()
+
+
+def test_psbt_valid_accepted() -> None:
+    assert validate.validate_bitcoin_psbt(_make_psbt()) is None
+
+
+def test_psbt_rejects_garbage() -> None:
+    assert validate.validate_bitcoin_psbt("not a psbt at all") is not None
+
+
+def test_psbt_rejects_non_base64() -> None:
+    assert validate.validate_bitcoin_psbt("!!!not-base64!!!") is not None
+
+
+def test_psbt_rejects_wrong_magic() -> None:
+    import base64
+    assert validate.validate_bitcoin_psbt(
+        base64.b64encode(b'notpsbt!' + bytes(20)).decode()
+    ) is not None
+
+
+def test_psbt_rejects_truncated() -> None:
+    valid = _make_psbt()
+    assert validate.validate_bitcoin_psbt(valid[:len(valid) // 2]) is not None
