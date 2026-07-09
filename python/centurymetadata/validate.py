@@ -13,6 +13,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from embit import bip32
 from embit.descriptor import Descriptor
 from embit.descriptor.checksum import checksum as descriptor_checksum
+from embit.descriptor.miniscript import Miniscript
 from embit.psbt import PSBT
 from embit.script import Script
 from embit.transaction import Transaction
@@ -165,6 +166,27 @@ def validate_bitcoin_descriptor(contents: str) -> Optional[str]:
 
 
 _VALIDATORS["bitcoin output script descriptor"] = validate_bitcoin_descriptor
+
+
+# ── bitcoin miniscript ────────────────────────────────────────────────────────
+
+def validate_bitcoin_miniscript(contents: str) -> Optional[str]:
+    """Validate CONTENTS as a miniscript expression.
+
+    A standalone miniscript must be usable as a top-level spending
+    script, which requires embit's inferred type to be B (Base) --
+    e.g. a v: or n:-wrapped fragment alone isn't a complete script.
+    """
+    try:
+        ms = Miniscript.from_string(contents)
+    except Exception as e:
+        return "not a valid miniscript: {}".format(e)
+    if ms.type != "B":
+        return "top-level miniscript must have type B (Base), got type {}".format(ms.type)
+    return None
+
+
+_VALIDATORS["bitcoin miniscript"] = validate_bitcoin_miniscript
 
 
 def validate_triples(triples: List[Triple]) -> Optional[str]:
