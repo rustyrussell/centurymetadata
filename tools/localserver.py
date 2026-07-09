@@ -23,12 +23,15 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8199)
     parser.add_argument("--basedir", type=Path, default=None,
                         help="Storage directory (default: a fresh tmpdir, removed on exit)")
+    parser.add_argument("--test-mode", action="store_true",
+                        help="Only allow known test identities, matching testapi.centurymetadata.org")
     args = parser.parse_args()
 
     basedir = args.basedir or Path(tempfile.mkdtemp(prefix="centurymetadata-"))
     (basedir / "00-ff" / "00-ff").mkdir(parents=True, exist_ok=True)
 
-    httpd = CenturyHTTPServer(basedir, args.host, args.port)
+    extra_env = {"CENTURYMETADATA_TEST_MODE": "1"} if args.test_mode else {}
+    httpd = CenturyHTTPServer(basedir, args.host, args.port, extra_env=extra_env)
     port = httpd.server_address[1]
     print(f"Serving centurymetadata API on http://{args.host}:{port}/api/v1/ (basedir={basedir})")
     print("Ctrl-C to stop.")

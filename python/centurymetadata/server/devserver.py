@@ -74,7 +74,8 @@ class _CenturyHandler(BaseHTTPRequestHandler):
     def _dispatch(self, body: bytes) -> None:
         content_type = self.headers.get('Content-Type', '')
         status, headers, resp_body = call_server(
-            self.server.basedir, self.command, self.path, body, content_type
+            self.server.basedir, self.command, self.path, body, content_type,
+            extra_env=self.server.extra_env
         )
         self.send_response(status)
         for k, v in headers.items():
@@ -88,6 +89,8 @@ class _CenturyHandler(BaseHTTPRequestHandler):
 
 
 class CenturyHTTPServer(HTTPServer):
-    def __init__(self, basedir: Path, host: str = 'localhost', port: int = 0) -> None:
+    def __init__(self, basedir: Path, host: str = 'localhost', port: int = 0,
+                 extra_env: Dict[str, str] = {}) -> None:
         self.basedir = basedir
+        self.extra_env = extra_env
         super().__init__((host, port), _CenturyHandler)
