@@ -10,6 +10,7 @@ from typing import Optional, Tuple, Any
 TOPLEVEL = "/api/v1/"
 BASEDIR = os.getenv("CENTURYMETADATA_BASEDIR", "/var/lib/centurymetadata/v1")
 SPLIT_THRESHOLD = int(os.getenv("CENTURYMETADATA_SPLIT_THRESHOLD", "1024"))
+TEST_MODE = os.getenv("CENTURYMETADATA_TEST_MODE") == "1"
 
 # For testing, make files group-writable
 os.umask(0o002)
@@ -218,6 +219,24 @@ def split_directory(dir_name: str) -> None:
     os.rename(dir_path, dir_path + '.old')
 
 
+def check_known_keys(reader_id: bytes, wkey: PublicKey) -> Optional[str]:
+    """In test mode, only known reader identities may authorize/update.
+
+    Returns an error string if the (reader, writer) pair is not allowed,
+    else None.
+    """
+    from centurymetadata.server import known_keys
+
+    if reader_id not in known_keys.known_reader_ids():
+        return "READER_ID {} is not a known test identity".format(reader_id.hex())
+
+    required_writer = known_keys.required_writer_pubkey(reader_id)
+    if required_writer is not None and wkey.serialize() != required_writer.serialize():
+        return ("WRITER {} does not match the known writer for READER_ID {}"
+                .format(wkey.serialize().hex(), reader_id.hex()))
+    return None
+
+
 def authorize(reader: str, writer: str, authtoken: str) -> None:
     # We use a dummy authtoken for testapi
     if authtoken != '0' * 64:
@@ -228,6 +247,11 @@ def authorize(reader: str, writer: str, authtoken: str) -> None:
         return bad_400("reader must be a 64-character hex READER_ID")
     if wkey is None:
         return bad_400("writer must be a valid compressed secp256k1 pubkey")
+
+    if TEST_MODE:
+        err = check_known_keys(reader_id, wkey)
+        if err is not None:
+            return bad_403(err)
 
     sdir = storage_dir(reader_id, wkey)
     if sdir is None:
