@@ -67,6 +67,11 @@ The types of records accepted are as follows:
 * Type: `bitcoin output script descriptor` Body: descriptor string
 * Type: `bitcoin wallet labels` Body: BIP-329 JSONL
 
+`TYPE` must match one of the five strings above exactly, and
+`CONTENTS` must be valid for that type (a real PSBT, a real transaction, a
+syntactically valid miniscript or output descriptor, or valid BIP-329 JSONL, as
+appropriate); the test server rejects any record that doesn't comply.
+
 ## API
 
 The test API endpoint can be found at [testapi.centurymetadata.org](https://testapi.centurymetadata.org/api/v1).
@@ -95,6 +100,28 @@ Returns a JSON array of objects, each giving the `directory` and `bundle` names 
 POST a 128-byte bitmask (one bit per bundle in the directory) as `Content-Type: application/octet-stream`. The server XORs together every bundle whose bit is set and returns the result as `Content-Type: application/x-centurymetadata`: always 1024 x 8192 = 8,388,608 bytes.  Setting a single bit simply returns that bundle.
 
 For *private* retrieval, query two servers with complementary bitmasks (one with your bundle's bit set, one with it cleared, all other bits matching): XOR the two responses together to recover your bundle without either server learning which one you wanted.
+
+## Known Test Keys
+
+Because it holds the corresponding private keys, the test server at
+[testapi.centurymetadata.org](https://testapi.centurymetadata.org/api/v1) can decrypt
+and check compliance for a small, fixed set of *known* reader identities, rejecting
+`authorize`/`update` requests for any other `READER_ID`. A reader
+identity is *known* if it is derived (as above) from a BIP-39 mnemonic consisting of
+the same word repeated 12 times whose checksum happens to be valid: roughly 1 in 16 of the
+2048-word English wordlist qualifies (130 words). The test server computes this set
+itself from the public wordlist; there is no secret list to request access to.
+
+Ordering these known words by their position in the wordlist, the first
+half are the *normal* case: the record's `WRITER_PUBKEY` must match that same
+identity's own derived writer key, i.e. the data is self-authored. The second half are
+reserved for the test server's own pre-populated example data, and may use other writers.
+
+For convenience when testing your own implementation, the first few known
+words (ordered by wordlist position) are `action`, `agent`, `aim`;
+the last few are `word`, `world`, `yellow`. The full,
+authoritative list is the checked-in
+[known_words.txt](https://raw.githubusercontent.com/rustyrussell/centurymetadata/master/python/centurymetadata/server/known_words.txt).
 
 ## Tools
 
