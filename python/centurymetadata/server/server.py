@@ -265,6 +265,27 @@ def authorize(reader: str, writer: str, authtoken: str) -> None:
     success()
 
 
+def check_content_compliance(reader_id: bytes, record: bytes) -> Optional[str]:
+    """In test mode, decrypt a known reader's record and check it's compliant.
+
+    Returns an error string if the reader is unknown or the decrypted
+    contents don't comply with the record spec, else None.
+    """
+    from centurymetadata.server import known_keys
+    from centurymetadata import validate
+
+    privkeys = known_keys.reader_privkeys(reader_id)
+    if privkeys is None:
+        return "READER_ID {} is not a known test identity".format(reader_id.hex())
+    reader_secp_privkey, reader_mlkem_privkey = privkeys
+
+    triples = centurymetadata.decode(reader_secp_privkey, reader_mlkem_privkey, record)
+    if triples is None:
+        return "Could not decrypt record for content validation"
+
+    return validate.validate_triples(triples)
+
+
 def update() -> None:
     content = os.getenv("CONTENT_TYPE")
     if content != 'application/x-centurymetadata':
@@ -282,6 +303,11 @@ def update() -> None:
 
     if not centurymetadata.check_sig(after_pre):
         return bad_400("Bad signature on x-centurymetadata")
+
+    if TEST_MODE:
+        err = check_content_compliance(reader_id, b)
+        if err is not None:
+            return bad_400(err)
 
     location = find_dir_and_bundle(reader_id)
     if location is None:
