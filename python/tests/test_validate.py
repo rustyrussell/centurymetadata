@@ -154,6 +154,10 @@ def test_transaction_rejects_truncated() -> None:
     assert validate.validate_bitcoin_transaction("deadbeef") is not None
 
 
+def test_transaction_rejects_trailing_garbage() -> None:
+    assert validate.validate_bitcoin_transaction(_make_tx_hex() + "ff") is not None
+
+
 # ── bitcoin output script descriptor ─────────────────────────────────────────
 
 def _make_descriptor() -> str:
@@ -184,5 +188,24 @@ def test_descriptor_rejects_malformed_grammar() -> None:
     assert validate.validate_bitcoin_descriptor("wpkh(not-a-key)") is not None
 
 
-def test_transaction_rejects_trailing_garbage() -> None:
-    assert validate.validate_bitcoin_transaction(_make_tx_hex() + "ff") is not None
+# ── bitcoin miniscript ────────────────────────────────────────────────────────
+
+def test_miniscript_valid_pk_accepted() -> None:
+    assert validate.validate_bitcoin_miniscript("pk({})".format(VALID_PUBKEY)) is None
+
+
+def test_miniscript_rejects_garbage() -> None:
+    assert validate.validate_bitcoin_miniscript("not a miniscript at all") is not None
+
+
+def test_miniscript_rejects_bad_key() -> None:
+    assert validate.validate_bitcoin_miniscript("pk(not-a-key)") is not None
+
+
+def test_miniscript_rejects_trailing_garbage() -> None:
+    assert validate.validate_bitcoin_miniscript("pk({})trailinggarbage".format(VALID_PUBKEY)) is not None
+
+
+def test_miniscript_rejects_non_base_toplevel() -> None:
+    # v: forces type V, not usable standalone as a top-level script.
+    assert validate.validate_bitcoin_miniscript("v:pk({})".format(VALID_PUBKEY)) is not None
