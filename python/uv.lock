@@ -11,6 +11,7 @@ name = "centurymetadata"
 version = "0.2"
 source = { editable = "." }
 dependencies = [
+    { name = "embit" },
     { name = "kyber-py" },
     { name = "pycryptodomex" },
     { name = "secp256k1" },
@@ -27,6 +28,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "embit", specifier = ">=0.8.0" },
     { name = "flake8", marker = "extra == 'dev'" },
     { name = "kyber-py", specifier = ">=0.5.0" },
     { name = "mypy", marker = "extra == 'dev'" },
@@ -270,6 +272,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6", size = 25335, upload-time = "2022-10-25T02:36:20.889Z" },
 ]
+
+[[package]]
+name = "embit"
+version = "0.8.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/83/88/b054b00ade6d2a41749e15976cdcec4b7ec4656ac1cb917ce3de395528d1/embit-0.8.0.tar.gz", hash = "sha256:8bf4b10073c67400370ce523fb16f035fe759f6fdd987c579bdcc268d75ed770", size = 763120, upload-time = "2024-05-30T10:56:48.944Z" }
 
 [[package]]
 name = "exceptiongroup"
