@@ -11,6 +11,8 @@ import re
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from embit import bip32
+from embit.descriptor import Descriptor
+from embit.descriptor.checksum import checksum as descriptor_checksum
 from embit.psbt import PSBT
 from embit.script import Script
 from embit.transaction import Transaction
@@ -138,6 +140,31 @@ def validate_bitcoin_transaction(contents: str) -> Optional[str]:
 
 
 _VALIDATORS["bitcoin transaction"] = validate_bitcoin_transaction
+
+
+# ── bitcoin output script descriptor ─────────────────────────────────────────
+
+def validate_bitcoin_descriptor(contents: str) -> Optional[str]:
+    """Validate CONTENTS as an output script descriptor (BIP-380).
+
+    embit.descriptor.Descriptor.from_string parses the descriptor
+    grammar itself but doesn't verify a trailing #checksum matches, so
+    that's checked here explicitly when one is present.
+    """
+    if "#" in contents:
+        body, _, given_checksum = contents.partition("#")
+        expected_checksum = descriptor_checksum(body)
+        if given_checksum != expected_checksum:
+            return "checksum mismatch: expected #{}".format(expected_checksum)
+
+    try:
+        Descriptor.from_string(contents)
+    except Exception as e:
+        return "not a valid output descriptor: {}".format(e)
+    return None
+
+
+_VALIDATORS["bitcoin output script descriptor"] = validate_bitcoin_descriptor
 
 
 def validate_triples(triples: List[Triple]) -> Optional[str]:

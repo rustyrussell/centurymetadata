@@ -154,5 +154,35 @@ def test_transaction_rejects_truncated() -> None:
     assert validate.validate_bitcoin_transaction("deadbeef") is not None
 
 
+# ── bitcoin output script descriptor ─────────────────────────────────────────
+
+def _make_descriptor() -> str:
+    from embit.descriptor.checksum import add_checksum
+    body = "wpkh([d34db33f/84h/0h/0h]{}/0/*)".format(VALID_XPUB)
+    return add_checksum(body)
+
+
+def test_descriptor_valid_accepted() -> None:
+    assert validate.validate_bitcoin_descriptor(_make_descriptor()) is None
+
+
+def test_descriptor_valid_without_checksum_accepted() -> None:
+    body = _make_descriptor().split("#")[0]
+    assert validate.validate_bitcoin_descriptor(body) is None
+
+
+def test_descriptor_rejects_bad_checksum() -> None:
+    body, _, _ = _make_descriptor().partition("#")
+    assert validate.validate_bitcoin_descriptor(body + "#00000000") is not None
+
+
+def test_descriptor_rejects_garbage() -> None:
+    assert validate.validate_bitcoin_descriptor("not a descriptor at all") is not None
+
+
+def test_descriptor_rejects_malformed_grammar() -> None:
+    assert validate.validate_bitcoin_descriptor("wpkh(not-a-key)") is not None
+
+
 def test_transaction_rejects_trailing_garbage() -> None:
     assert validate.validate_bitcoin_transaction(_make_tx_hex() + "ff") is not None
