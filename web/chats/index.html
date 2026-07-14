@@ -94,6 +94,10 @@
       color: var(--fg);
     }
 
+    .next-time.live {
+      color: var(--accent);
+    }
+
     .join {
       margin-top: 1.75rem;
       text-align: center;
@@ -120,12 +124,12 @@
     <p class="secondary">
       Europe-friendly: Monday, 12:00 UTC, every two weeks, starting 15 June 2026.
       <a href="/calendar/century-metadata-chat-europe.ics">Add to calendar</a>.
-      <span class="next-time" data-start="2026-06-15T12:00:00Z" data-interval-days="14"></span>
+      <span class="next-time" data-start="2026-06-15T12:00:00Z" data-interval-days="14" data-duration-minutes="30"></span>
     </p>
     <p class="secondary">
       US-friendly: Tuesday, 20:30 UTC, every two weeks, starting 23 June 2026.
       <a href="/calendar/century-metadata-chat-us.ics">Add to calendar</a>.
-      <span class="next-time" data-start="2026-06-23T20:30:00Z" data-interval-days="14"></span>
+      <span class="next-time" data-start="2026-06-23T20:30:00Z" data-interval-days="14" data-duration-minutes="30"></span>
     </p>
     <p class="join">
       <a href="https://meet.proton.me/join/id-NPG552FNQC#pwd-PDKhBp9miOUt">Join the chat</a>
@@ -156,13 +160,20 @@
       return d;
     }
 
-    function nextOccurrence(startISO, intervalDays) {
+    function occurrenceInfo(startISO, intervalDays, durationMinutes) {
       const start = new Date(startISO);
       const now = new Date();
-      if (now <= start) return start;
       const intervalMs = intervalDays * 24 * 60 * 60 * 1000;
-      const periods = Math.ceil((now - start) / intervalMs);
-      return new Date(start.getTime() + periods * intervalMs);
+      const durationMs = durationMinutes * 60 * 1000;
+
+      if (now < start) return { time: start, live: false };
+
+      const periods = Math.floor((now - start) / intervalMs);
+      const currentStart = new Date(start.getTime() + periods * intervalMs);
+      if (now < new Date(currentStart.getTime() + durationMs)) {
+        return { time: currentStart, live: true };
+      }
+      return { time: new Date(currentStart.getTime() + intervalMs), live: false };
     }
 
     function describeNext(next) {
@@ -194,8 +205,13 @@
     }
 
     document.querySelectorAll('.next-time').forEach((el) => {
-      const next = nextOccurrence(el.dataset.start, Number(el.dataset.intervalDays));
-      el.textContent = `Next: ${describeNext(next)}`;
+      const { time, live } = occurrenceInfo(
+        el.dataset.start,
+        Number(el.dataset.intervalDays),
+        Number(el.dataset.durationMinutes)
+      );
+      el.classList.toggle('live', live);
+      el.textContent = live ? 'Live now' : `Next: ${describeNext(time)}`;
     });
   </script>
 </body>
