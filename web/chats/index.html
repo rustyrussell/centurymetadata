@@ -149,6 +149,13 @@
       return d;
     }
 
+    function mondayOfWeek(date) {
+      const d = startOfDay(date);
+      const daysSinceMonday = (d.getDay() + 6) % 7;
+      d.setDate(d.getDate() - daysSinceMonday);
+      return d;
+    }
+
     function nextOccurrence(startISO, intervalDays) {
       const start = new Date(startISO);
       const now = new Date();
@@ -177,8 +184,10 @@
       if (dayDiff === 1) return `Tomorrow, ${timeStr}`;
 
       const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'long' }).format(next);
-      if (dayDiff >= 2 && dayDiff <= 6) return `${weekday}, ${timeStr}`;
-      if (dayDiff >= 7 && dayDiff <= 13) return `${weekday} next week, ${timeStr}`;
+      const weeksDiff = Math.round((mondayOfWeek(next) - mondayOfWeek(now)) / (7 * 86400000));
+      if (weeksDiff === 0) return `${weekday}, ${timeStr}`;
+      if (weeksDiff === 1) return `${weekday} next week, ${timeStr}`;
+      if (weeksDiff === 2) return `${weekday} week after next, ${timeStr}`;
 
       const dateStr = new Intl.DateTimeFormat(undefined, { month: 'long', day: 'numeric' }).format(next);
       return `${weekday}, ${dateStr}, ${timeStr}`;
