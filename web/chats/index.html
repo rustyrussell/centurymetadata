@@ -87,6 +87,28 @@
       color: var(--muted);
     }
 
+    .next-time {
+      display: block;
+      margin-top: 0.15rem;
+      font-weight: 600;
+      color: var(--fg);
+    }
+
+    .join {
+      margin-top: 1.75rem;
+      text-align: center;
+    }
+
+    .join a {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      border-radius: 999px;
+      background: var(--accent);
+      color: var(--bg);
+      font-weight: 700;
+      text-decoration: none;
+    }
+
   </style>
 </head>
 <body>
@@ -98,14 +120,74 @@
     <p class="secondary">
       Europe-friendly: Monday, 12:00 UTC, every two weeks, starting 15 June 2026.
       <a href="/calendar/century-metadata-chat-europe.ics">Add to calendar</a>.
+      <span class="next-time" data-start="2026-06-15T12:00:00Z" data-interval-days="14"></span>
     </p>
     <p class="secondary">
       US-friendly: Tuesday, 20:30 UTC, every two weeks, starting 23 June 2026.
       <a href="/calendar/century-metadata-chat-us.ics">Add to calendar</a>.
+      <span class="next-time" data-start="2026-06-23T20:30:00Z" data-interval-days="14"></span>
+    </p>
+    <p class="join">
+      <a href="https://meet.proton.me/join/id-NPG552FNQC#pwd-PDKhBp9miOUt">Join the chat</a>
     </p>
     <p class="contact">
       <a href="/">Century Metadata</a> · <a href="mailto:hello@centurymetadata.org">hello@centurymetadata.org</a>
     </p>
   </main>
+  <script>
+    function formatClockTime(date) {
+      let hours = date.getHours();
+      const minutes = date.getMinutes();
+      const ampm = hours >= 12 ? 'pm' : 'am';
+      hours = hours % 12 || 12;
+      return minutes === 0 ? `${hours}${ampm}` : `${hours}:${String(minutes).padStart(2, '0')}${ampm}`;
+    }
+
+    function startOfDay(date) {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+
+    function nextOccurrence(startISO, intervalDays) {
+      const start = new Date(startISO);
+      const now = new Date();
+      if (now <= start) return start;
+      const intervalMs = intervalDays * 24 * 60 * 60 * 1000;
+      const periods = Math.ceil((now - start) / intervalMs);
+      return new Date(start.getTime() + periods * intervalMs);
+    }
+
+    function describeNext(next) {
+      const now = new Date();
+      const dayDiff = Math.round((startOfDay(next) - startOfDay(now)) / 86400000);
+      const timeStr = formatClockTime(next);
+
+      if (dayDiff === 0) {
+        const diffMin = Math.round((next - now) / 60000);
+        if (diffMin <= 1) return 'Today, starting now';
+        if (diffMin < 60) return `Today, in ${diffMin} minute${diffMin === 1 ? '' : 's'}`;
+        const hours = Math.floor(diffMin / 60);
+        const minutes = diffMin % 60;
+        const hourStr = `${hours} hour${hours === 1 ? '' : 's'}`;
+        return minutes === 0
+          ? `Today, in ${hourStr}`
+          : `Today, in ${hourStr} ${minutes} minute${minutes === 1 ? '' : 's'}`;
+      }
+      if (dayDiff === 1) return `Tomorrow, ${timeStr}`;
+
+      const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'long' }).format(next);
+      if (dayDiff >= 2 && dayDiff <= 6) return `${weekday}, ${timeStr}`;
+      if (dayDiff >= 7 && dayDiff <= 13) return `${weekday} next week, ${timeStr}`;
+
+      const dateStr = new Intl.DateTimeFormat(undefined, { month: 'long', day: 'numeric' }).format(next);
+      return `${weekday}, ${dateStr}, ${timeStr}`;
+    }
+
+    document.querySelectorAll('.next-time').forEach((el) => {
+      const next = nextOccurrence(el.dataset.start, Number(el.dataset.intervalDays));
+      el.textContent = `Next: ${describeNext(next)}`;
+    });
+  </script>
 </body>
 </html>
