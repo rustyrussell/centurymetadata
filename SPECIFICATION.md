@@ -7,6 +7,11 @@ term.  This makes standards vital, so we spell out those requirements
 here, split into Reader (wallet) and Writer (server) sections for
 maximal clarity.
 
+Another key aim is that, should this data be disclosed in some way, only
+privacy, not security is lost.  This means, in particular, that keys
+and similar data are never represented directly, only as relative to
+known keys.
+
 ## Table of Contents
 
   * [File Format](#file-format)
@@ -15,6 +20,7 @@ maximal clarity.
     * [Writer Requirements](#writer-requirements)
     * [Rationale](#writer-requirements-rationale)
   * [Individual Record Formats](#individual-record-formats)
+  * [Suggested Type Priorities](#suggested-type-priorities)
   * [Acknowledgments](#acknowledgments)
   * [References](#references)
   * [Authors](#authors)
@@ -49,7 +55,7 @@ the document we divide this into:
 
 1. Literal [ASCII](#ref-ascii) header with two NUL delimeters (1187 bytes).
 2. Cryptograhic header (1705 bytes).
-3. AES-encrypted [zlib](#ref-zlib) stream containing tuples (14679 bytes).
+3. AES-encrypted [zlib](#ref-zlib) stream containing records: tuples separated by NUL bytes (14679 bytes).
 
 ### Reader Requirements
 
@@ -59,7 +65,9 @@ A reader of a century metadata file:
 - MUST otherwise ignore the first 1187 bytes (the literal header).
 - MUST fail parsing if `READER_ID` does not equal [SHA256](#ref-sha256)(`READER_SECP_PUBKEY`|`READER_MLKEM_PUBKEY`) for a keypair the reader holds the secrets to.
 - MUST fail parsing if `SIG` is not a valid [BIP-340](#ref-bip340) signature by `WRITER_PUBKEY` over SHA256(`TAG`|`TAG`|`WRITER_PUBKEY`|`READER_ID`|`GEN`|`MLKEM_CT`|`AES`).
-- If `WRITER_PUBKEY` does not equal the pubkey the reader itself would derive at `0x44315441'/N'/0'` (for the `N` used to derive this file's reader keys):
+- If `WRITER_PUBKEY` equals the pubkey the reader itself would derive at `0x44315441'/N'/0'` (for the `N` used to derive this file's reader keys):
+  - The file is referred to as "to-self".
+- Otherwise: (not a "to-self" file)
   - MAY choose to fail parsing.
   - MAY choose not to process all type records (e.g. to display `bitcoin wallet labels` fields).
   - If the reader chooses not to fully process the file:
@@ -79,7 +87,11 @@ A reader of a century metadata file:
   - If `TYPE` is not a known type:
     - MUST ignore that tuple and continue processing.
   - Otherwise:
-    - SHOULD use NAME as a descriptive text for the user's information.
+    - If the record fails to parse, as defined in the requirements specific to that `TYPE` (specified in [Individual Record Formats](#individual-record-formats)):
+      - If this is a "to-self" file:
+        - MUST continue parsing remaining tuples
+      - Otherwise (not a "to-self" file):
+        - MAY continue parsing remaining tuples
 
 ### Reader Requirements Rationale
 
@@ -97,6 +109,7 @@ A reader of a century metadata file:
 10. Implementations must take care not to run out of memory when decompressing; 1MB is beyond a reasonable compression ratio for this size using the [deflate](#ref-deflate) algorithm.
 11. There is explicit padding after the zlib stream, which must be ignored.
 12. A malformed or truncated tuple doesn't invalidate entries already parsed: implementations stop at the first tuple they can't parse, keeping everything before it.  An unrecognized `TYPE` is simply skipped since future additions (or implementations only interested in a subset of types) shouldn't choke on types they don't understand.
+13. If it's a "to-self" file, it is trusted, so we should try really hard to process any data we can.  If it's not, it may make sense to stop immediately when something fails.
 
 ### Writer Requirements
 
@@ -105,7 +118,7 @@ A writer of a century metadata file:
 - MUST set `WRITER_PUBKEY` to the compressed [secp256k1](#ref-secp256k1) key it will use to sign the message.
 - MUST set `READER_ID` to the [SHA256](#ref-sha256) of the concatenated `READER_SECP_PUBKEY` and `READER_MLKEM_PUBKEY`.
 - MUST encode `GEN` as an 8-byte little-endian unsigned integer.
-- If it is sending a message to itself:
+- If it is sending to itself (a "to-self" file):
   - SHOULD derive `WRITER_PUBKEY` from the [BIP-32](#ref-bip32) derivation path `0x44315441'/N'/0'`.
   - For the first file:
     - MUST use `N` = 0.
@@ -119,11 +132,14 @@ A writer of a century metadata file:
 - SHOULD only use `TYPE` fields defined in this specification.
 - If it uses a `TYPE` not defined in this specification:
   - MUST begin the type string with `_`.
+- Otherwise:
+  - MUST meet any requirements specific to that `TYPE` as specified below.
 - MUST create the tuples using the per-tuple requirements listed for each type.
 - MUST only use valid [UTF-8](#ref-utf-8) strings without NULs for `TYPE`, `NAME` and `CONTENTS`.
 - MUST terminate each of `TYPE`, `NAME` and `CONTENTS`, for every tuple including the last, with a single NUL character.
 - MUST compress the terminated tuples using the [zlib](#ref-zlib) protocol:
   - MUST NOT set FDICT.
+- MUST write tuples in decreasing priority order (see [Suggested Type Priorities](#suggested-type-priorities)).
 - Whenever the resulting compressed message is greater than 14663 bytes long:
   - MUST either:
     - Remove the lowest-priority tuples — priority being the order provided, lowest last — until the compressed message is no more than 14663 bytes long, OR
@@ -155,7 +171,47 @@ Each distinctive `TYPE` has its own requirements on the `NAME` and
 `CONTENTS` fields.  These are generally references to other,
 pre-existing standards.
 
-### FIXME...
+Note that the phrase "fail to parse" here is specific language refered to in the general Reader Requirements previously.
+
+### `next cmdata derivation path`
+
+This record exists to chain files together, as each is of limited length.  It simply lists the next derivation path, rather than the next record keys directly.
+
+#### Requirements
+
+The reader:
+- MUST fail to parse the record if `CONTENTS` is not a valid decimal number, or is not greater than `N` for this file.
+- SHOULD fetch the file for that `N` value and continue processing records from that after this file.
+- If it does:
+  - MUST ignore this record if there is no file corresponding to that next `N` value.
+- MUST NOT follow multiple `next cmdata derivation path` records in the same file.
+
+The writer:
+- MUST NOT create more than one of these records per file.
+- MUST set `NAME` empty.
+- MUST set `CONTENTS` to the derivation path `N` for the next file, as the ASCII representation of a decimal number.
+- MUST choose `N` for the next file greater than this one.
+- SHOULD choose the next `N` such that the reader key has a similar prefix.
+- MAY write this record before creating the next file.
+
+#### Rationale
+
+For the reader:
+1. The reader should ignore invalid records, or records which could lead to loops.
+2. The user expects all the data to be read, so chaining should be followed, though there could
+   be limits (particularly if it is not a "to-self" file).
+3. The writer is allowed to create this record, then the new file.  The reader should not get upset in this case.
+4. Since there should only be one chain, how a reader chooses to interpret multiple is left open to implementation convenience: first or last would be fine.
+
+For the writer:
+1. This is a chain, not a tree.
+2. `NAME` doesn't make sense here.
+3. All `CONTENTS` is text, so this is the logical representation.
+4. This means it's easy for the reader to avoid loops.
+5. Using neighboring keys promotes privacy, since records can be fetched in groups.  Generating N this way requires grinding, but an implementation could generate candidates for three seconds then choose the best one.
+6. This simplifies implementation, though it is not required.
+
+## Suggested Type Priorities
 
 ## Acknowledgments
 
