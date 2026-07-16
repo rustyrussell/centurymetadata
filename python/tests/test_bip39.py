@@ -9,7 +9,7 @@ def test_wordlist_size() -> None:
 
 
 def test_known_vectors() -> None:
-    # BIP-39 spec test vectors (trezor python-mnemonic vectors.json)
+    # Trezor python-mnemonic vectors.json, from the BIP-39 spec.
     assert checksum_valid(['abandon'] * 11 + ['about'])
     assert checksum_valid(
         'legal winner thank year wave sausage worth useful legal winner thank yellow'.split())
