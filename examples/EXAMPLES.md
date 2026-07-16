@@ -24,7 +24,7 @@ Derived reader_id: 86bc303b5a3a42d81319561bab832beb13bbcc66951893398db1150a5da26
 Writer pubkey: 031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f
 ```
 
-The output is 8192 bytes of binary data (including the preamble header).
+The output is 16384 bytes of binary data (following the preamble header).
 It is non-deterministic because the ML-KEM encapsulation uses randomness.
 
 And here's how we'd do this in python:
@@ -107,7 +107,7 @@ bundle's 0-based index (its bit position in the bitmask for `fetchxor`).
 
 To fetch a bundle, POST a 128-byte bitmask to `fetchxor/{directory}`.
 The server XORs together all bundles whose corresponding bit is set and
-returns the result — always 1024 × 8192 = 8,388,608 bytes.  With a
+returns the result — always 1024 × 16384 = 16,777,216 bytes.  With a
 single bit set you simply get that bundle back:
 
 ```
@@ -116,7 +116,7 @@ $ printf '\x01%0.s' {1..127} | cat <(printf '\x01') - | \
   http://testapi.centurymetadata.org/api/v1/fetchxor/00-ff > /tmp/bundle
 ```
 
-Each 8192-byte slot in the bundle contains a record (SIG[64]|WRITER[33]|
+Each 16384-byte slot in the bundle contains a record (SIG[64]|WRITER[33]|
 READER_ID[32]|...) with empty slots zeroed.  Your record is the slot
 whose READER_ID field (bytes 97–128) matches your reader_id.
 

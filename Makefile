@@ -16,7 +16,7 @@ check-mypy:
 # Checks that SPEC/BIP quotes embedded in source comments still say what
 # the spec (SPECIFICATION.md) or the referenced BIPs actually say.
 check-spec:
-	cd python && uv run spectate check --config ../specquotes.toml --comment-aside "# [NOTE:"  -k $$(find centurymetadata tests -name '*.py')
+	cd python && uv run spectate check --config ../specquotes.toml  --comment-aside "# [NOTE:" -k $$(find centurymetadata tests -name '*.py') $$(find ../tools -name '*.py')
 
 # Catches vars/templates drifting out of sync with the checked-in generated files.
 check-docs:
@@ -44,8 +44,8 @@ README.md: templates/README.md.src templates/convert-src vars Makefile
 python/README.md: README.md
 	cp $< $@
 
-python/centurymetadata/constants.py: templates/constants.py.src vars Makefile
-	templates/convert-src raw vars $< > $@
+python/centurymetadata/constants.py: SPECIFICATION.md tools/generate_constants.py Makefile
+	cd python && uv run python3 ../tools/generate_constants.py
 
 upload: web/index.html
 	rsync -av web/ ozlabs.org:/home/rusty/www/centurymetadata.org/htdocs/
