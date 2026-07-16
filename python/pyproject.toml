@@ -15,14 +15,6 @@ dependencies = [
     "embit>=0.8.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest",
-    "flake8",
-    "mypy",
-    "requests",
-]
-
 [project.urls]
 Homepage = "https://centurymetadata.org/"
 Repository = "https://github.com/rustyrussell/centurymetadata/"
@@ -30,3 +22,12 @@ Repository = "https://github.com/rustyrussell/centurymetadata/"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "flake8",
+    "mypy",
+    "requests",
+    "greatspectations>=0.1.1; python_version>='3.11'",
+]

@@ -5,13 +5,18 @@ default: README.md python/README.md web/technical.html python/centurymetadata/co
 check:
 	cd python && uv run pytest $(PYTEST_ARGS)
 
-check-source: check-flake8 check-mypy
+check-source: check-flake8 check-mypy check-spec
 
 check-flake8:
 	cd python && uv run flake8 --ignore=E501,E731,W503 centurymetadata tests
 
 check-mypy:
 	cd python && uv run mypy --ignore-missing-imports --disallow-untyped-defs --disallow-incomplete-defs centurymetadata tests
+
+# Checks that SPEC/BIP quotes embedded in source comments still say what
+# the spec (SPECIFICATION.md) or the referenced BIPs actually say.
+check-spec:
+	cd python && uv run spectate check --config ../specquotes.toml --comment-aside "# [NOTE:"  -k $$(find centurymetadata tests -name '*.py')
 
 # Catches vars/templates drifting out of sync with the checked-in generated files.
 check-docs:

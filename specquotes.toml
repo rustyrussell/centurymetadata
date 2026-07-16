@@ -1,0 +1,8 @@
+[sources.cmdata-spec]
+format = "markdown"
+file = "SPECIFICATION.md"
+
+[sources.bip]
+format = "mediawiki"
+dir = "../bips"
+pattern = "bip-{id:04d}.mediawiki"
