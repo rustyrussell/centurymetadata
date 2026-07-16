@@ -20,7 +20,7 @@ os.umask(0o002)
 #   <dirmin>-<dirmax>/            <- directory: groups ~1024 bundles, named by
 #     <bmin>-<bmax>/              <-   min-max reader_id hex prefix of contents
 #       <reader_id>+<writer>/     <- record dir (empty = authorized, not yet written)
-#         <gen_hex>               <- record file: exactly FULL_LENGTH (8192) bytes,
+#         <gen_hex>               <- record file: exactly FULL_LENGTH bytes,
 #     <bmin>-<bmax>.old/          <-   preamble stripped and verified on upload.
 #     ...                         <- .old dirs kept ~1hr after a split for in-flight
 #   <dirmin>-<dirmax>/            <-   fetchxor queries, then cleaned up.

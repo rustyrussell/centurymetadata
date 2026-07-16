@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 from Cryptodome.Cipher import AES
 from kyber_py.ml_kem import ML_KEM_1024
-from centurymetadata import compress, aes, derive_mlkem_keypair, get_ecdh_secret, get_reader_id, get_aeskey, contents, encode, DATA_LENGTH, MLKEM_CT_LENGTH
+from centurymetadata import compress, aes, derive_mlkem_keypair, get_ecdh_secret, get_reader_id, get_aeskey, contents, encode, DATA_LENGTH, FULL_LENGTH, MLKEM_CT_LENGTH
 from centurymetadata.constants import preamble
 from secp256k1 import PrivateKey
 import gzip
@@ -77,7 +77,7 @@ def test_contents() -> None:
 
     ret = contents(secret1.pubkey, reader_id, 1, mlkem_ct, data)
 
-    assert len(ret) == 8192 - 64
+    assert len(ret) == FULL_LENGTH - 64
     assert ret[0:33] == secret1.pubkey.serialize()
     assert ret[33:33 + 32] == reader_id
     assert ret[33 + 32:33 + 32 + 8] == bytes((0,) * 7 + (1,))
@@ -120,5 +120,5 @@ def test_encode_complete() -> None:
 
     complete = encode(writer_privkey, reader_secp_privkey.pubkey, reader_mlkem_pubkey, 0,
                       ['a', 'name-a', 'aaaaaa'], ['b', 'name-b', 'bbbbbb'])
-    assert len(complete) == len(preamble) + 8192
+    assert len(complete) == len(preamble) + FULL_LENGTH
     assert complete.startswith(preamble)
