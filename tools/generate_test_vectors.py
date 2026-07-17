@@ -19,16 +19,19 @@ Three test cases:
 All three use: TYPE="text", NAME="note", CONTENTS="This is a test string", GEN=0.
 
 Determinism notes (test-vector-only choices, not protocol requirements):
-  GZIP_MTIME=0          suppress embedded timestamp in gzip header
   SCHNORR_AUX_RAND=0*32 deterministic BIP-340 Schnorr nonce
   MLKEM_ENCAPS_TAG      tag used to derive a deterministic ML-KEM encaps seed
+
+zlib.compress() is already fully deterministic for a given input and
+compression level -- unlike gzip, the zlib container has no embedded
+timestamp or OS byte, so there's no extra determinism knob needed here.
 """
 
-import gzip
 import hashlib
 import hmac as hmaclib
 import json
 import sys
+import zlib
 from pathlib import Path
 
 from Cryptodome.Cipher import AES as AESCipher
@@ -179,11 +182,6 @@ def generate_vector(mnemonic: str, n: int) -> dict:
         "CONTENTS": _pv(
             "Record body, encoded as UTF-8 followed by a NUL byte in DATA.",
             CONTENTS),
-        "GZIP_MTIME": _pv(
-            "gzip header mtime field (bytes 4-7 of the stream). "
-            "Set to 0 for deterministic output; gzip normally embeds the "
-            "current timestamp here.",
-            0),
         "SCHNORR_AUX_RAND": _pv(
             "aux_rand32 input to BIP-340 Schnorr signing (see BIP-340 'Signing', step 2). "
             "Set to 32 zero bytes for deterministic test vectors; "
@@ -361,15 +359,12 @@ def generate_vector(mnemonic: str, n: int) -> dict:
         + NAME.encode("utf-8") + b"\x00"
         + CONTENTS.encode("utf-8") + b"\x00"
     )
-    compressed = gzip.compress(raw_plaintext, mtime=0)
-    # See centurymetadata.encode.compress(): force the OS byte so DATA
-    # is reproducible regardless of the local zlib build.
-    compressed = compressed[:9] + b"\xff" + compressed[10:]
+    compressed = zlib.compress(raw_plaintext, level=9)
     data_padded = compressed + b"\x00" * (DATA_LENGTH - len(compressed))
     assert len(data_padded) == DATA_LENGTH
     results["DATA"] = _r(
-        f'"DATA: gzip([TYPE\\0NAME\\0CONTENTS\\0]+), padded with 0 bytes to {DATA_LENGTH}". '
-        f"gzip(TYPE||NUL||NAME||NUL||CONTENTS||NUL, mtime=0) = {len(compressed)} bytes, "
+        f'"DATA: ZLIB([TYPE\\0NAME\\0CONTENTS\\0]+), padded with 0 bytes to {DATA_LENGTH}". '
+        f"zlib(TYPE||NUL||NAME||NUL||CONTENTS||NUL) = {len(compressed)} bytes, "
         f"zero-padded to {DATA_LENGTH}. This is the AES plaintext.",
         data_padded.hex())
 

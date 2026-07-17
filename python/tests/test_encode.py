@@ -4,29 +4,29 @@ from kyber_py.ml_kem import ML_KEM_1024
 from centurymetadata import compress, aes, derive_mlkem_keypair, get_ecdh_secret, get_reader_id, get_aeskey, contents, encode, DATA_LENGTH, AES_LENGTH, FULL_LENGTH, MLKEM_CT_LENGTH
 from centurymetadata.constants import preamble
 from secp256k1 import PrivateKey
-import gzip
 import hashlib
 import pytest
 import random
 import string
+import zlib
 
 
 def test_compress() -> None:
     triples = [('a', 'b', 'c')]
     ret = compress(triples)
     assert len(ret) == DATA_LENGTH
-    assert gzip.decompress(ret) == bytes((0x61, 0, 0x62, 0, 0x63, 0))
+    assert zlib.decompress(ret) == bytes((0x61, 0, 0x62, 0, 0x63, 0))
 
     triples = [('a', 'b', 'c'), ('d', 'e', 'f')]
     ret = compress(triples)
     assert len(ret) == DATA_LENGTH
-    assert gzip.decompress(ret) == bytes((0x61, 0, 0x62, 0, 0x63, 0, 0x64, 0, 0x65, 0, 0x66, 0))
+    assert zlib.decompress(ret) == bytes((0x61, 0, 0x62, 0, 0x63, 0, 0x64, 0, 0x65, 0, 0x66, 0))
 
     # This compresses well
     triples = [('a', 'b', 'c'), ('d', 'e', 'f' * 90000)]
     ret = compress(triples)
     assert len(ret) == DATA_LENGTH
-    assert gzip.decompress(ret) == bytes((0x61, 0, 0x62, 0, 0x63, 0, 0x64, 0, 0x65, 0)) + bytes("f", encoding="utf8") * 90000 + bytes(1)
+    assert zlib.decompress(ret) == bytes((0x61, 0, 0x62, 0, 0x63, 0, 0x64, 0, 0x65, 0)) + bytes("f", encoding="utf8") * 90000 + bytes(1)
 
     # Test too-long triples.
     triples = [('a', 'b', ''.join(random.choices(string.printable, k=90000)))]

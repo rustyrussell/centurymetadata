@@ -1,6 +1,6 @@
 from Cryptodome.Cipher import AES
-import gzip
 import hashlib
+import zlib
 from kyber_py.ml_kem import ML_KEM_1024
 from secp256k1 import PrivateKey, PublicKey
 from .constants import bip340tag, preamble, DATA_LENGTH, AES_LENGTH, MLKEM_CT_LENGTH
@@ -17,12 +17,12 @@ def compress(triples: Iterable[Tuple[str, str, str]]) -> bytes:
         raw += bytes(1)
         raw += bytes(contents, encoding="utf8")
         raw += bytes(1)
-    ret = gzip.compress(raw, mtime=0)
-    # gzip.compress()'s mtime=0 fast path hands the whole header to zlib,
-    # which stamps the OS byte (offset 9) with whatever the local zlib
-    # build defaults to (e.g. 3="Unix" vs 255="unknown"). Force it fixed
-    # so DATA is byte-for-byte reproducible across platforms.
-    ret = ret[:9] + b'\xff' + ret[10:]
+    # CMDATA-SPEC/Writer Requirements: MUST compress the terminated tuples
+    # using the [zlib](#ref-zlib) protocol: ...MUST NOT set FDICT.
+
+    # zlib.compress() never sets a preset dictionary unless one is passed
+    # to compressobj(zdict=...), which we don't use here.
+    ret = zlib.compress(raw, level=9)
     if len(ret) > DATA_LENGTH:
         raise ValueError("Compressed length too great!")
 

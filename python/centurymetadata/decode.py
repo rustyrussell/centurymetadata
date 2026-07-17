@@ -1,15 +1,39 @@
 from Cryptodome.Cipher import AES
-import gzip
+import zlib
 from kyber_py.ml_kem import ML_KEM_1024
 from secp256k1 import PrivateKey, PublicKey
 from .constants import bip340tag, preamble, DATA_LENGTH, AES_LENGTH, FULL_LENGTH, MLKEM_CT_LENGTH
 from .encode import get_ecdh_secret, get_aeskey
 from typing import Tuple, List, Optional
 
+# CMDATA-SPEC/Reader Requirements: MUST fail parsing if the decompressed
+# size would exceed 1048576 bytes.
+MAX_DECOMPRESSED_LENGTH = 1048576
+
 
 def decompress(comp: bytes) -> Optional[List[Tuple[str, str, str]]]:
     """Decompress into type, name, contents triples"""
-    uncomp = gzip.decompress(comp)
+    decompressor = zlib.decompressobj()
+    try:
+        # Cap output at MAX_DECOMPRESSED_LENGTH+1: if that's what we get
+        # back, more remained, i.e. the real size exceeds our limit.
+        uncomp = decompressor.decompress(comp, MAX_DECOMPRESSED_LENGTH + 1)
+    except zlib.error:
+        # CMDATA-SPEC/Reader Requirements: MUST fail parsing if the
+        # decrypted bytes do not contain a valid [zlib](#ref-zlib) stream.
+        return None
+    if len(uncomp) > MAX_DECOMPRESSED_LENGTH:
+        return None
+    if not decompressor.eof:
+        # Ran out of input before reaching the stream's end: truncated,
+        # not a valid zlib stream.
+        return None
+    # CMDATA-SPEC/Reader Requirements: MUST ignore any bytes remaining
+    # after the zlib stream.
+
+    # comp's explicit padding past end-of-stream is simply never fed to
+    # inflate, since decompressobj stops consuming input at eof.
+
     # Split by 0 byte
     fields = uncomp.split(sep=bytes(1))
     # That gives us a final empty field, which we ignore...
