@@ -3,7 +3,7 @@ import gzip
 import hashlib
 from kyber_py.ml_kem import ML_KEM_1024
 from secp256k1 import PrivateKey, PublicKey
-from .constants import bip340tag, preamble, DATA_LENGTH, MLKEM_CT_LENGTH
+from .constants import bip340tag, preamble, DATA_LENGTH, AES_LENGTH, MLKEM_CT_LENGTH
 from typing import Callable, Iterable, Tuple, Any
 
 
@@ -30,12 +30,17 @@ def compress(triples: Iterable[Tuple[str, str, str]]) -> bytes:
 
 
 def aes(aeskey: bytes, compressed: bytes) -> bytes:
-    """Encrypt the compressed data using the given key"""
+    """Encrypt the compressed data using the given key, appending the GCM tag"""
     assert len(aeskey) == 32
     assert len(compressed) == DATA_LENGTH
-    encrypter = AES.new(key=aeskey, mode=AES.MODE_CTR, nonce=bytes(8))
-
-    return encrypter.encrypt(compressed)
+    # CMDATA-SPEC/Writer Requirements: MUST use `AESKEY` to [AES](#ref-aes)-256-[GCM](#ref-gcm)-encrypt
+    # the padded, compressed stream, using a 12-byte all-zero nonce, and
+    # append the 16-byte authentication tag.
+    encrypter = AES.new(key=aeskey, mode=AES.MODE_GCM, nonce=bytes(12))
+    ciphertext, tag = encrypter.encrypt_and_digest(compressed)
+    ret = ciphertext + tag
+    assert len(ret) == AES_LENGTH
+    return ret
 
 
 def bip340_tagged_hash(tag: str, data: bytes) -> bytes:
@@ -83,9 +88,13 @@ def get_reader_id(reader_secp_pubkey: PublicKey, reader_mlkem_pubkey: bytes) -> 
     return hashlib.sha256(reader_secp_pubkey.serialize() + reader_mlkem_pubkey).digest()
 
 
-def get_aeskey(ecdh_secret: bytes, mlkem_secret: bytes) -> bytes:
-    """Derive AES key: SHA256(ECDH_SECRET | MLKEM_SECRET)"""
-    return hashlib.sha256(ecdh_secret + mlkem_secret).digest()
+def get_aeskey(ecdh_secret: bytes, mlkem_secret: bytes, gen: int) -> bytes:
+    """Derive AES key: SHA256(ECDH_SECRET | MLKEM_SECRET | GEN)"""
+    # CMDATA-SPEC/File Format: AESKEY: SHA256(ECDH_SECRET|MLKEM_SECRET|GEN)
+
+    # GEN is encoded here the same way as the wire GEN[8] field (see
+    # contents()).
+    return hashlib.sha256(ecdh_secret + mlkem_secret + gen.to_bytes(8, "big")).digest()
 
 
 def contents(writer: PublicKey, reader_id: bytes, gen: int, mlkem_ct: bytes, aes_data: bytes) -> bytes:
@@ -106,7 +115,7 @@ def encode(writer_privkey: PrivateKey,
     comp = compress(triples)
     ecdh_secret = get_ecdh_secret(writer_privkey, reader_secp_pubkey)
     mlkem_secret, mlkem_ct = ML_KEM_1024.encaps(reader_mlkem_pubkey)
-    aeskey = get_aeskey(ecdh_secret, mlkem_secret)
+    aeskey = get_aeskey(ecdh_secret, mlkem_secret, generation)
     encrypted = aes(aeskey, comp)
     reader_id = get_reader_id(reader_secp_pubkey, reader_mlkem_pubkey)
     cont = contents(writer_privkey.pubkey, reader_id, generation, mlkem_ct, encrypted)

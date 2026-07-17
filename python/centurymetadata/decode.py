@@ -2,7 +2,7 @@ from Cryptodome.Cipher import AES
 import gzip
 from kyber_py.ml_kem import ML_KEM_1024
 from secp256k1 import PrivateKey, PublicKey
-from .constants import bip340tag, preamble, DATA_LENGTH, FULL_LENGTH, MLKEM_CT_LENGTH
+from .constants import bip340tag, preamble, DATA_LENGTH, AES_LENGTH, FULL_LENGTH, MLKEM_CT_LENGTH
 from .encode import get_ecdh_secret, get_aeskey
 from typing import Tuple, List, Optional
 
@@ -23,12 +23,21 @@ def decompress(comp: bytes) -> Optional[List[Tuple[str, str, str]]]:
 
 
 def unaes(aeskey: bytes, encrypted: bytes) -> bytes:
-    """Decrypt the compressed data using the given key"""
-    assert len(aeskey) == 32
-    assert len(encrypted) == DATA_LENGTH
-    decrypter = AES.new(key=aeskey, mode=AES.MODE_CTR, nonce=bytes(8))
+    """Decrypt the compressed data using the given key, verifying the trailing GCM tag.
 
-    return decrypter.decrypt(encrypted)
+    Raises ValueError if the tag doesn't verify.
+    """
+    assert len(aeskey) == 32
+    assert len(encrypted) == AES_LENGTH
+    # CMDATA-SPEC/Reader Requirements: MUST use `AESKEY` to [AES](#ref-aes)-256-[GCM](#ref-gcm)-decrypt
+    # the `AES` bytes (immediately following `MLKEM_CT`), using a 12-byte
+    # all-zero nonce.
+    # CMDATA-SPEC/Reader Requirements: MUST fail parsing if the trailing
+    # 16-byte authentication tag does not verify.
+    ciphertext, tag = encrypted[:DATA_LENGTH], encrypted[DATA_LENGTH:]
+    decrypter = AES.new(key=aeskey, mode=AES.MODE_GCM, nonce=bytes(12))
+
+    return decrypter.decrypt_and_verify(ciphertext, tag)
 
 
 def split_parts(after_preamble: bytes) -> Tuple[bytes, PublicKey, bytes, int, bytes, bytes]:
@@ -87,7 +96,10 @@ def decode(reader_secp_privkey: PrivateKey,
 
     ecdh_secret = get_ecdh_secret(reader_secp_privkey, wkey)
     mlkem_secret = ML_KEM_1024.decaps(reader_mlkem_privkey, mlkem_ct)
-    aeskey = get_aeskey(ecdh_secret, mlkem_secret)
+    aeskey = get_aeskey(ecdh_secret, mlkem_secret, gen)
 
-    comp = unaes(aeskey, encrypted)
+    try:
+        comp = unaes(aeskey, encrypted)
+    except ValueError:
+        return None
     return decompress(comp)

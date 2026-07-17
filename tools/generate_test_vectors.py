@@ -36,7 +36,7 @@ from kyber_py.ml_kem import ML_KEM_1024
 from secp256k1 import PrivateKey, ffi, lib, secp256k1_ctx
 
 from centurymetadata.constants import (
-    preamble as PREAMBLE, FULL_LENGTH, MLKEM_CT_LENGTH, DATA_LENGTH,
+    preamble as PREAMBLE, FULL_LENGTH, MLKEM_CT_LENGTH, DATA_LENGTH, AES_LENGTH,
 )
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -349,9 +349,10 @@ def generate_vector(mnemonic: str, n: int) -> dict:
         mlkem_secret.hex())
 
     # AESKEY
-    aeskey = hashlib.sha256(ecdh_secret + mlkem_secret).digest()
+    gen_bytes = GEN.to_bytes(8, "big")
+    aeskey = hashlib.sha256(ecdh_secret + mlkem_secret + gen_bytes).digest()
     results["AESKEY"] = _r(
-        '"AESKEY: SHA256(ECDH_SECRET|MLKEM_SECRET)". 32-byte AES-256 encryption key.',
+        '"AESKEY: SHA256(ECDH_SECRET|MLKEM_SECRET|GEN)". 32-byte AES-256 encryption key.',
         aeskey.hex())
 
     # DATA
@@ -373,16 +374,18 @@ def generate_vector(mnemonic: str, n: int) -> dict:
         data_padded.hex())
 
     # AES
-    cipher = AESCipher.new(key=aeskey, mode=AESCipher.MODE_CTR, nonce=bytes(8))
-    aes_field = cipher.encrypt(data_padded)
+    cipher = AESCipher.new(key=aeskey, mode=AESCipher.MODE_GCM, nonce=bytes(12))
+    ciphertext, tag = cipher.encrypt_and_digest(data_padded)
+    aes_field = ciphertext + tag
+    assert len(aes_field) == AES_LENGTH
     results["AES"] = _r(
-        '"AES: CTR mode (starting 0, nonce 0) using AESKEY of DATA". '
-        "AES-256-CTR with 8-byte nonce=0x00*8 and counter starting at 0 "
-        f"(full 16-byte IV = 0x00*16). {DATA_LENGTH} bytes. Stored in the record.",
+        '"AES: AES-256-GCM using AESKEY, 12-byte all-zero nonce, of DATA; '
+        '16-byte authentication tag appended". '
+        f"{len(ciphertext)}-byte ciphertext with a 16-byte GCM tag appended, "
+        f"{AES_LENGTH} bytes total. Stored in the record.",
         aes_field.hex())
 
     # SIG
-    gen_bytes = GEN.to_bytes(8, "big")
     content = writer_pub + reader_id + gen_bytes + mlkem_ct + aes_field
     assert len(content) == FULL_LENGTH - 64
 
@@ -401,7 +404,7 @@ def generate_vector(mnemonic: str, n: int) -> dict:
     results["RECORD"] = _r(
         f"Complete file: preamble ({len(PREAMBLE)} bytes) "
         "|| SIG[64] || WRITER_PUBKEY[33] || READER_ID[32] || GEN[8] "
-        f"|| MLKEM_CT[{MLKEM_CT_LENGTH}] || AES[{DATA_LENGTH}]. "
+        f"|| MLKEM_CT[{MLKEM_CT_LENGTH}] || AES[{AES_LENGTH}]. "
         f"Total {len(record)} bytes. "
         "Verify: centurymetadata.decode(READER_SECP_PRIVKEY, READER_MLKEM_PRIVKEY, RECORD) "
         f'== [("{TYPE}", "{NAME}", "{CONTENTS}")].',
