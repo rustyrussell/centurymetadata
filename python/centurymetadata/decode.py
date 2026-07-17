@@ -74,7 +74,9 @@ def split_parts(after_preamble: bytes) -> Tuple[bytes, PublicKey, bytes, int, by
 
     reader_id = after_preamble[64 + 33:64 + 33 + 32]
     gen_off = 64 + 33 + 32
-    gen = int.from_bytes(after_preamble[gen_off:gen_off + 8], "big")
+    # CMDATA-SPEC/Writer Requirements: MUST encode `GEN` as an 8-byte
+    # little-endian unsigned integer.
+    gen = int.from_bytes(after_preamble[gen_off:gen_off + 8], "little")
     mlkem_ct_off = gen_off + 8
     mlkem_ct = after_preamble[mlkem_ct_off:mlkem_ct_off + MLKEM_CT_LENGTH]
     aes_data = after_preamble[mlkem_ct_off + MLKEM_CT_LENGTH:]

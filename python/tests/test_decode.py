@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 from kyber_py.ml_kem import ML_KEM_1024
 from centurymetadata import encode, decode, decompress
-from centurymetadata.decode import MAX_DECOMPRESSED_LENGTH
+from centurymetadata.decode import MAX_DECOMPRESSED_LENGTH, deconstruct
 from secp256k1 import PrivateKey
 import random
 import zlib
@@ -12,9 +12,21 @@ def test_decode_complete() -> None:
     reader_secp_privkey = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
     reader_mlkem_pubkey, reader_mlkem_privkey = ML_KEM_1024.keygen()
 
-    complete = encode(writer_privkey, reader_secp_privkey.pubkey, reader_mlkem_pubkey, 0,
+    # A non-zero, asymmetric GEN so a big/little-endian mixup would
+    # actually change the derived AESKEY and break decoding -- GEN=0
+    # encodes identically either way and wouldn't catch that.
+    generation = 0x0102030405060708
+
+    complete = encode(writer_privkey, reader_secp_privkey.pubkey, reader_mlkem_pubkey, generation,
                       ['a', 'name-a', 'aaaaaa'], ['b', 'name-b', 'bbbbbb'])
     assert decode(reader_secp_privkey, reader_mlkem_privkey, complete) == [('a', 'name-a', 'aaaaaa'), ('b', 'name-b', 'bbbbbb')]
+
+    # CMDATA-SPEC/Writer Requirements: MUST encode `GEN` as an 8-byte
+    # little-endian unsigned integer.
+    _, _, decoded_gen, after_preamble = deconstruct(complete)
+    assert decoded_gen == generation
+    gen_off = 64 + 33 + 32
+    assert after_preamble[gen_off:gen_off + 8] == generation.to_bytes(8, "little")
 
 
 def test_decompress_ignores_trailing_padding() -> None:

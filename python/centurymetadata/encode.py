@@ -94,13 +94,15 @@ def get_aeskey(ecdh_secret: bytes, mlkem_secret: bytes, gen: int) -> bytes:
 
     # GEN is encoded here the same way as the wire GEN[8] field (see
     # contents()).
-    return hashlib.sha256(ecdh_secret + mlkem_secret + gen.to_bytes(8, "big")).digest()
+    return hashlib.sha256(ecdh_secret + mlkem_secret + gen.to_bytes(8, "little")).digest()
 
 
 def contents(writer: PublicKey, reader_id: bytes, gen: int, mlkem_ct: bytes, aes_data: bytes) -> bytes:
     assert len(reader_id) == 32
     assert len(mlkem_ct) == MLKEM_CT_LENGTH
-    return writer.serialize() + reader_id + gen.to_bytes(8, "big") + mlkem_ct + aes_data
+    # CMDATA-SPEC/Writer Requirements: MUST encode `GEN` as an 8-byte
+    # little-endian unsigned integer.
+    return writer.serialize() + reader_id + gen.to_bytes(8, "little") + mlkem_ct + aes_data
 
 
 def sign(writer: PrivateKey, cont: bytes) -> bytes:
