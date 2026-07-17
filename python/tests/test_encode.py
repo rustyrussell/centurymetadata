@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 from Cryptodome.Cipher import AES
 from kyber_py.ml_kem import ML_KEM_1024
-from centurymetadata import compress, aes, derive_mlkem_keypair, get_ecdh_secret, get_reader_id, get_aeskey, contents, encode, DATA_LENGTH, FULL_LENGTH, MLKEM_CT_LENGTH
+from centurymetadata import compress, aes, derive_mlkem_keypair, get_ecdh_secret, get_reader_id, get_aeskey, contents, encode, DATA_LENGTH, AES_LENGTH, FULL_LENGTH, MLKEM_CT_LENGTH
 from centurymetadata.constants import preamble
 from secp256k1 import PrivateKey
 import gzip
@@ -38,9 +38,17 @@ def test_aes() -> None:
     data = bytes((1,) * DATA_LENGTH)
     aeskey = bytes((2,) * 32)
     enc = aes(aeskey, data)
+    assert len(enc) == AES_LENGTH
 
-    decrypter = AES.new(key=aeskey, mode=AES.MODE_CTR, nonce=bytes(8))
-    assert decrypter.decrypt(enc) == data
+    decrypter = AES.new(key=aeskey, mode=AES.MODE_GCM, nonce=bytes(12))
+    assert decrypter.decrypt_and_verify(enc[:DATA_LENGTH], enc[DATA_LENGTH:]) == data
+
+    # Tampering with any byte should break the tag check
+    tampered = bytearray(enc)
+    tampered[0] ^= 1
+    decrypter = AES.new(key=aeskey, mode=AES.MODE_GCM, nonce=bytes(12))
+    with pytest.raises(ValueError):
+        decrypter.decrypt_and_verify(bytes(tampered[:DATA_LENGTH]), bytes(tampered[DATA_LENGTH:]))
 
 
 def test_get_ecdh_secret() -> None:
@@ -64,16 +72,19 @@ def test_get_aeskey() -> None:
     ecdh_secret = bytes([random.choice(range(256)) for _ in range(32)])
     mlkem_secret = bytes([random.choice(range(256)) for _ in range(32)])
 
-    aeskey = get_aeskey(ecdh_secret, mlkem_secret)
+    aeskey = get_aeskey(ecdh_secret, mlkem_secret, 1)
     assert len(aeskey) == 32
-    assert aeskey == hashlib.sha256(ecdh_secret + mlkem_secret).digest()
+    assert aeskey == hashlib.sha256(ecdh_secret + mlkem_secret + (1).to_bytes(8, "big")).digest()
+
+    # Different GEN must give a different key
+    assert get_aeskey(ecdh_secret, mlkem_secret, 2) != aeskey
 
 
 def test_contents() -> None:
     secret1 = PrivateKey(bytes([random.choice(range(256)) for _ in range(32)]))
     reader_id = bytes([random.choice(range(256)) for _ in range(32)])
     mlkem_ct = bytes([random.choice(range(256)) for _ in range(MLKEM_CT_LENGTH)])
-    data = bytes((2,) * DATA_LENGTH)
+    data = bytes((2,) * AES_LENGTH)
 
     ret = contents(secret1.pubkey, reader_id, 1, mlkem_ct, data)
 

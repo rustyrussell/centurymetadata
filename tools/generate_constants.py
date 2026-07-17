@@ -72,16 +72,22 @@ def parse_wire_format(spec_text: str) -> dict:
 
     full_length = sum(widths.values())
     mlkem_ct_length = widths["MLKEM_CT"]
-    data_length = full_length - (
-        widths["SIG"] + widths["WRITER_PUBKEY"] + widths["READER_ID"]
-        + widths["GEN"] + mlkem_ct_length
-    )
+    # CMDATA-SPEC/Writer Requirements: MUST use `AESKEY` to [AES](#ref-aes)-256-[GCM](#ref-gcm)-encrypt
+    # the padded, compressed stream, using a 12-byte all-zero nonce, and
+    # append the 16-byte authentication tag.
+
+    # The AES[N] field on the wire holds ciphertext + a 16-byte GCM tag, so
+    # the zlib-padded plaintext it's built from is 16 bytes shorter.
+    GCM_TAG_LENGTH = 16
+    aes_length = widths["AES"]
+    data_length = aes_length - GCM_TAG_LENGTH
 
     return {
         "verheader": verheader,
         "preamble": preamble,
         "full_length": full_length,
         "mlkem_ct_length": mlkem_ct_length,
+        "aes_length": aes_length,
         "data_length": data_length,
     }
 
@@ -98,6 +104,7 @@ preamble = {preamble!r}
 FULL_LENGTH = {full_length}
 MLKEM_CT_LENGTH = {mlkem_ct_length}
 DATA_LENGTH = {data_length}
+AES_LENGTH = {aes_length}
 RECORD_LENGTH = len(preamble) + FULL_LENGTH
 # BIP340 tag excludes final \\0
 bip340tag = verheader[:-1]

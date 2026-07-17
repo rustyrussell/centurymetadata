@@ -7,7 +7,8 @@ preamble = b'centurymetadata v1\x00SIG[64]|WRITER_PUBKEY[33]|READER_ID[32]|GEN[8
 
 FULL_LENGTH = 16384
 MLKEM_CT_LENGTH = 1568
-DATA_LENGTH = 14679
+DATA_LENGTH = 14663
+AES_LENGTH = 14679
 RECORD_LENGTH = len(preamble) + FULL_LENGTH
 # BIP340 tag excludes final \0
 bip340tag = verheader[:-1]
