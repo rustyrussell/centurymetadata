@@ -318,6 +318,10 @@ def update() -> None:
                         reader_id.hex() + "+" + wkey.serialize().hex())
 
     try:
+        # Deliberately big-endian here, unlike the wire GEN[8] field (see
+        # SPECIFICATION.md): this filename only exists so pack_bundle()
+        # can find the latest generation via sorted(os.listdir(...))[-1],
+        # which needs lexicographic order to match numeric order.
         f = open(os.path.join(sdir, gen.to_bytes(8, "big").hex()), "xb")
     except FileExistsError:
         return bad_400("Generation {} already exists".format(gen))

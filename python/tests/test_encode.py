@@ -74,7 +74,7 @@ def test_get_aeskey() -> None:
 
     aeskey = get_aeskey(ecdh_secret, mlkem_secret, 1)
     assert len(aeskey) == 32
-    assert aeskey == hashlib.sha256(ecdh_secret + mlkem_secret + (1).to_bytes(8, "big")).digest()
+    assert aeskey == hashlib.sha256(ecdh_secret + mlkem_secret + (1).to_bytes(8, "little")).digest()
 
     # Different GEN must give a different key
     assert get_aeskey(ecdh_secret, mlkem_secret, 2) != aeskey
@@ -91,7 +91,7 @@ def test_contents() -> None:
     assert len(ret) == FULL_LENGTH - 64
     assert ret[0:33] == secret1.pubkey.serialize()
     assert ret[33:33 + 32] == reader_id
-    assert ret[33 + 32:33 + 32 + 8] == bytes((0,) * 7 + (1,))
+    assert ret[33 + 32:33 + 32 + 8] == bytes((1,) + (0,) * 7)
     assert ret[33 + 32 + 8:33 + 32 + 8 + MLKEM_CT_LENGTH] == mlkem_ct
     assert ret[33 + 32 + 8 + MLKEM_CT_LENGTH:] == data
 

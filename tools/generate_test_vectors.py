@@ -171,7 +171,7 @@ def generate_vector(mnemonic: str, n: int) -> dict:
             "Key-set index - the N in BIP-32 path 0x44315441'/N'/...",
             n),
         "GEN": _pv(
-            "Record generation counter (8-byte big-endian in the wire format).",
+            "Record generation counter (8-byte little-endian in the wire format).",
             GEN),
         "TYPE": _pv(
             "Record type, encoded as UTF-8 followed by a NUL byte in DATA.",
@@ -347,7 +347,7 @@ def generate_vector(mnemonic: str, n: int) -> dict:
         mlkem_secret.hex())
 
     # AESKEY
-    gen_bytes = GEN.to_bytes(8, "big")
+    gen_bytes = GEN.to_bytes(8, "little")
     aeskey = hashlib.sha256(ecdh_secret + mlkem_secret + gen_bytes).digest()
     results["AESKEY"] = _r(
         '"AESKEY: SHA256(ECDH_SECRET|MLKEM_SECRET|GEN)". 32-byte AES-256 encryption key.',
