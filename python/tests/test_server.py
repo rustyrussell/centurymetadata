@@ -155,10 +155,10 @@ def test_fetchxor_contains_record(basedir: Path, keys: Dict) -> None:
                                     body=bytes(bitmask),
                                     content_type='application/octet-stream')
     assert status == 200
-    assert len(bundle) == 1024 * centurymetadata.FULL_LENGTH
+    assert len(bundle) == 1024 * centurymetadata.DATA_LENGTH
 
     # Find our record by READER_ID field (offset 64+33 in each slot)
-    slot_size = centurymetadata.FULL_LENGTH
+    slot_size = centurymetadata.DATA_LENGTH
     reader_id_offset = 64 + 33
     our_reader_id = keys['reader_id']
     found = False
@@ -371,7 +371,7 @@ def test_split_records_accessible(tmp_path: Path) -> None:
     assert status == 200
     bundles = json.loads(body)
 
-    slot_size = centurymetadata.FULL_LENGTH
+    slot_size = centurymetadata.DATA_LENGTH
     all_slots: Dict[bytes, bytes] = {}
     dirs_seen: Set[str] = set()
     for bundle_entry in bundles:

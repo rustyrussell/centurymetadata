@@ -11,7 +11,7 @@ import sys
 # ── Fetch helper ─────────────────────────────────────────────────────────────
 
 def fetch_slot(server: str, reader_id: bytes):
-    """XOR-PIR fetch. Returns the raw FULL_LENGTH slot bytes, or None if not found."""
+    """XOR-PIR fetch. Returns the raw DATA_LENGTH slot bytes, or None if not found."""
     listreq = requests.get(server + '/api/v1/listbundles')
     if listreq.status_code != 200:
         print("listbundles failed: {}".format(listreq.status_code), file=sys.stderr)
@@ -42,7 +42,7 @@ def fetch_slot(server: str, reader_id: bytes):
         return None
 
     bundle = r.content
-    slot_size = centurymetadata.FULL_LENGTH
+    slot_size = centurymetadata.DATA_LENGTH
     reader_id_offset = 64 + 33  # after SIG[64] and WRITER_PUBKEY[33]
     for i in range(len(bundle) // slot_size):
         slot = bundle[i * slot_size:(i + 1) * slot_size]

@@ -3,12 +3,12 @@ import hashlib
 import zlib
 from kyber_py.ml_kem import ML_KEM_1024
 from secp256k1 import PrivateKey, PublicKey
-from .constants import bip340tag, preamble, DATA_LENGTH, AES_LENGTH, MLKEM_CT_LENGTH
+from .constants import bip340tag, preamble, PLAINTEXT_LENGTH, AES_LENGTH, MLKEM_CT_LENGTH
 from typing import Callable, Iterable, Tuple, Any
 
 
 def compress(triples: Iterable[Tuple[str, str, str]]) -> bytes:
-    """Compress the triples, padding with zeroes to DATA_LENGTH, raising an exception if the result is too large"""
+    """Compress the triples, padding with zeroes to PLAINTEXT_LENGTH, raising an exception if the result is too large"""
     raw = bytes()
     for rtype, name, contents in triples:
         raw += bytes(rtype, encoding="utf8")
@@ -23,16 +23,16 @@ def compress(triples: Iterable[Tuple[str, str, str]]) -> bytes:
     # zlib.compress() never sets a preset dictionary unless one is passed
     # to compressobj(zdict=...), which we don't use here.
     ret = zlib.compress(raw, level=9)
-    if len(ret) > DATA_LENGTH:
+    if len(ret) > PLAINTEXT_LENGTH:
         raise ValueError("Compressed length too great!")
 
-    return ret.ljust(DATA_LENGTH, bytes(1))
+    return ret.ljust(PLAINTEXT_LENGTH, bytes(1))
 
 
 def aes(aeskey: bytes, compressed: bytes) -> bytes:
     """Encrypt the compressed data using the given key, appending the GCM tag"""
     assert len(aeskey) == 32
-    assert len(compressed) == DATA_LENGTH
+    assert len(compressed) == PLAINTEXT_LENGTH
     # CMDATA-SPEC/Writer Requirements: MUST use `AESKEY` to [AES](#ref-aes)-256-[GCM](#ref-gcm)-encrypt
     # the padded, compressed stream, using a 12-byte all-zero nonce, and
     # append the 16-byte authentication tag.

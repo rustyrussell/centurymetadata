@@ -27,10 +27,31 @@ known keys.
 
 ## File Format
 
-The file header (below) is embedded verbatim, byte-for-byte, at the start of every file. It contains exactly two real NUL bytes: the 19th byte (ending `centurymetadata v1`) and the final byte. Every other `\0` shown below is literal two-character notation (backslash, zero) marking where NUL-separators fall in `DATA` — not an actual NUL byte:
+The file consists of three main parts:
+
+1. Literal [ASCII](#ref-ascii) header with two NUL delimeters (1187 bytes for VERSION_HEADER_STRING + NUL + PREAMBLE_HEADER_STRING + NUL).
+2. Cryptograhic header (1705 bytes = SIGNATURE_LENGTH + PUBKEY_LENGTH + READER_ID_LENGTH + GENERATION_LENGTH + MLKEM_CT_LENGTH).
+3. AES-encrypted [zlib](#ref-zlib) stream containing records: tuples separated by NUL bytes (14679 = DATA_LENGTH minus the cryptographic header, plaintext is 14663 bytes after subtracting AES_TAG_LENGTH).
+
+The following constants are defined for implementation convenience:
 
 ```
-centurymetadata v1\0SIG[64]|WRITER_PUBKEY[33]|READER_ID[32]|GEN[8]|MLKEM_CT[1568]|AES[14679]
+DATA_LENGTH=16384
+```
+
+This is the size of the payload, *after* the human-readable headers.
+
+```
+VERSION_HEADER_STRING=centurymetadata v1
+PREAMBLE_HEADER_STRING=SIG[64]|WRITER_PUBKEY[33]|READER_ID[32]|GEN[8]|MLKEM_CT[1568]|AES[14679]\n\nSIG: BIP-340 SHA256(TAG|TAG|WRITER_PUBKEY|READER_ID|GEN|MLKEM_CT|AES)\nWRITER_PUBKEY: BIP-32 0x44315441'/N'/0'\nREADER_SECP_PRIVKEY: BIP-32 0x44315441'/N'/1'\nREADER_SECP_PUBKEY: 33-byte compressed G*READER_SECP_PRIVKEY\nREADER_MLKEM_SEED_D: BIP-32 0x44315441'/N'/3'\nREADER_MLKEM_SEED_Z: BIP-340 SHA256(MLKEM_Z_TAG|MLKEM_Z_TAG|READER_MLKEM_SEED_D)\nMLKEM_Z_TAG: SHA256("centurymetadata v1 mlkem-z"[26])\nREADER_MLKEM_PRIVKEY, READER_MLKEM_PUBKEY: ML-KEM-1024.KeyGen(d=READER_MLKEM_SEED_D,z=READER_MLKEM_SEED_Z)\nREADER_ID: SHA256(READER_SECP_PUBKEY|READER_MLKEM_PUBKEY)\nTAG: SHA256("centurymetadata v1"[18])\nMLKEM_CT: ML-KEM-1024 (FIPS 203) ciphertext encapsulated to reader's ML-KEM key\nMLKEM_SECRET: ML-KEM-1024.Decaps(MLKEM_CT, READER_MLKEM_PRIVKEY)\nECDH_SECRET: EC Diffie-Hellman of WRITER_PUBKEY and READER_SECP_PRIVKEY = SHA256(33-byte compressed WRITER_PUBKEY*READER_SECP_PRIVKEY)\nAESKEY: SHA256(ECDH_SECRET|MLKEM_SECRET|GEN)\nAES: AES-256-GCM using AESKEY, 12-byte all-zero nonce, of DATA; 16-byte authentication tag appended\nDATA: ZLIB([TYPE\\0NAME\\0CONTENTS\\0]+), padded with 0 bytes to 14663
+```
+
+The first string spells out the version, then contains a NUL character.  It is followed by a complete, readable description of the format, again terminated by a NUL character.
+
+In other words, the literal header looks like these 1187 bytes (with `<NUL>` representing a literal ASCII 0 byte):
+
+```
+centurymetadata v1<NUL>SIG[64]|WRITER_PUBKEY[33]|READER_ID[32]|GEN[8]|MLKEM_CT[1568]|AES[14679]
 
 SIG: BIP-340 SHA256(TAG|TAG|WRITER_PUBKEY|READER_ID|GEN|MLKEM_CT|AES)
 WRITER_PUBKEY: BIP-32 0x44315441'/N'/0'
@@ -47,15 +68,24 @@ MLKEM_SECRET: ML-KEM-1024.Decaps(MLKEM_CT, READER_MLKEM_PRIVKEY)
 ECDH_SECRET: EC Diffie-Hellman of WRITER_PUBKEY and READER_SECP_PRIVKEY = SHA256(33-byte compressed WRITER_PUBKEY*READER_SECP_PRIVKEY)
 AESKEY: SHA256(ECDH_SECRET|MLKEM_SECRET|GEN)
 AES: AES-256-GCM using AESKEY, 12-byte all-zero nonce, of DATA; 16-byte authentication tag appended
-DATA: ZLIB([TYPE\0NAME\0CONTENTS\0]+), padded with 0 bytes to 14663\0
+DATA: ZLIB([TYPE\0NAME\0CONTENTS\0]+), padded with 0 bytes to 14663<NUL>
 ```
 
-This describes the rest of the file contents.  For the remainder of
-the document we divide this into:
+```
+SIGNATURE_LENGTH=64
+PUBKEY_LENGTH=33
+READER_ID_LENGTH=32
+GENERATION_LENGTH=8
+MLKEM_CT_LENGTH=1568
+```
 
-1. Literal [ASCII](#ref-ascii) header with two NUL delimeters (1187 bytes).
-2. Cryptograhic header (1705 bytes).
-3. AES-encrypted [zlib](#ref-zlib) stream containing records: tuples separated by NUL bytes (14679 bytes).
+The cryptographic header consists of the signature over the remaining message (not the literal header), followed by the signing key, then the hash of the reader's two keys, a generation number, and an MLKEM ciphertext containing a secret.
+
+```
+AES_TAG_LENGTH=16
+```
+
+This is the number of bytes for the AEAD-encrypted data, which is at the end of the file.
 
 ### Reader Requirements
 
