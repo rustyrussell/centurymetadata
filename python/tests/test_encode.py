@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 from Cryptodome.Cipher import AES
 from kyber_py.ml_kem import ML_KEM_1024
-from centurymetadata import compress, aes, derive_mlkem_keypair, get_ecdh_secret, get_reader_id, get_aeskey, contents, encode, DATA_LENGTH, AES_LENGTH, FULL_LENGTH, MLKEM_CT_LENGTH
+from centurymetadata import compress, aes, derive_mlkem_keypair, get_ecdh_secret, get_reader_id, get_aeskey, contents, encode, PLAINTEXT_LENGTH, AES_LENGTH, DATA_LENGTH, MLKEM_CT_LENGTH
 from centurymetadata.constants import preamble
 from secp256k1 import PrivateKey
 import hashlib
@@ -14,18 +14,18 @@ import zlib
 def test_compress() -> None:
     triples = [('a', 'b', 'c')]
     ret = compress(triples)
-    assert len(ret) == DATA_LENGTH
+    assert len(ret) == PLAINTEXT_LENGTH
     assert zlib.decompress(ret) == bytes((0x61, 0, 0x62, 0, 0x63, 0))
 
     triples = [('a', 'b', 'c'), ('d', 'e', 'f')]
     ret = compress(triples)
-    assert len(ret) == DATA_LENGTH
+    assert len(ret) == PLAINTEXT_LENGTH
     assert zlib.decompress(ret) == bytes((0x61, 0, 0x62, 0, 0x63, 0, 0x64, 0, 0x65, 0, 0x66, 0))
 
     # This compresses well
     triples = [('a', 'b', 'c'), ('d', 'e', 'f' * 90000)]
     ret = compress(triples)
-    assert len(ret) == DATA_LENGTH
+    assert len(ret) == PLAINTEXT_LENGTH
     assert zlib.decompress(ret) == bytes((0x61, 0, 0x62, 0, 0x63, 0, 0x64, 0, 0x65, 0)) + bytes("f", encoding="utf8") * 90000 + bytes(1)
 
     # Test too-long triples.
@@ -35,20 +35,20 @@ def test_compress() -> None:
 
 
 def test_aes() -> None:
-    data = bytes((1,) * DATA_LENGTH)
+    data = bytes((1,) * PLAINTEXT_LENGTH)
     aeskey = bytes((2,) * 32)
     enc = aes(aeskey, data)
     assert len(enc) == AES_LENGTH
 
     decrypter = AES.new(key=aeskey, mode=AES.MODE_GCM, nonce=bytes(12))
-    assert decrypter.decrypt_and_verify(enc[:DATA_LENGTH], enc[DATA_LENGTH:]) == data
+    assert decrypter.decrypt_and_verify(enc[:PLAINTEXT_LENGTH], enc[PLAINTEXT_LENGTH:]) == data
 
     # Tampering with any byte should break the tag check
     tampered = bytearray(enc)
     tampered[0] ^= 1
     decrypter = AES.new(key=aeskey, mode=AES.MODE_GCM, nonce=bytes(12))
     with pytest.raises(ValueError):
-        decrypter.decrypt_and_verify(bytes(tampered[:DATA_LENGTH]), bytes(tampered[DATA_LENGTH:]))
+        decrypter.decrypt_and_verify(bytes(tampered[:PLAINTEXT_LENGTH]), bytes(tampered[PLAINTEXT_LENGTH:]))
 
 
 def test_get_ecdh_secret() -> None:
@@ -88,7 +88,7 @@ def test_contents() -> None:
 
     ret = contents(secret1.pubkey, reader_id, 1, mlkem_ct, data)
 
-    assert len(ret) == FULL_LENGTH - 64
+    assert len(ret) == DATA_LENGTH - 64
     assert ret[0:33] == secret1.pubkey.serialize()
     assert ret[33:33 + 32] == reader_id
     assert ret[33 + 32:33 + 32 + 8] == bytes((1,) + (0,) * 7)
@@ -131,5 +131,5 @@ def test_encode_complete() -> None:
 
     complete = encode(writer_privkey, reader_secp_privkey.pubkey, reader_mlkem_pubkey, 0,
                       ['a', 'name-a', 'aaaaaa'], ['b', 'name-b', 'bbbbbb'])
-    assert len(complete) == len(preamble) + FULL_LENGTH
+    assert len(complete) == len(preamble) + DATA_LENGTH
     assert complete.startswith(preamble)

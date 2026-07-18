@@ -2,7 +2,7 @@ from Cryptodome.Cipher import AES
 import zlib
 from kyber_py.ml_kem import ML_KEM_1024
 from secp256k1 import PrivateKey, PublicKey
-from .constants import bip340tag, preamble, DATA_LENGTH, AES_LENGTH, FULL_LENGTH, MLKEM_CT_LENGTH
+from .constants import bip340tag, preamble, PLAINTEXT_LENGTH, AES_LENGTH, DATA_LENGTH, MLKEM_CT_LENGTH
 from .encode import get_ecdh_secret, get_aeskey
 from typing import Tuple, List, Optional
 
@@ -58,7 +58,7 @@ def unaes(aeskey: bytes, encrypted: bytes) -> bytes:
     # all-zero nonce.
     # CMDATA-SPEC/Reader Requirements: MUST fail parsing if the trailing
     # 16-byte authentication tag does not verify.
-    ciphertext, tag = encrypted[:DATA_LENGTH], encrypted[DATA_LENGTH:]
+    ciphertext, tag = encrypted[:PLAINTEXT_LENGTH], encrypted[PLAINTEXT_LENGTH:]
     decrypter = AES.new(key=aeskey, mode=AES.MODE_GCM, nonce=bytes(12))
 
     return decrypter.decrypt_and_verify(ciphertext, tag)
@@ -85,7 +85,7 @@ def split_parts(after_preamble: bytes) -> Tuple[bytes, PublicKey, bytes, int, by
 
 
 def check_sig(after_preamble: bytes) -> bool:
-    assert len(after_preamble) == FULL_LENGTH
+    assert len(after_preamble) == DATA_LENGTH
 
     try:
         sig, wkey, _, _, _, _ = split_parts(after_preamble)
@@ -100,9 +100,9 @@ def deconstruct(cmetadata: bytes) -> Tuple[PublicKey, bytes, int, bytes]:
     if not cmetadata.startswith(preamble):
         raise ValueError("Incorrect preamble")
     after_preamble = cmetadata[len(preamble):]
-    if len(after_preamble) != FULL_LENGTH:
+    if len(after_preamble) != DATA_LENGTH:
         raise ValueError("Expected {} bytes after preamble, got {}"
-                         .format(FULL_LENGTH, len(after_preamble)))
+                         .format(DATA_LENGTH, len(after_preamble)))
 
     _, wkey, reader_id, gen, _, _ = split_parts(after_preamble)
     return wkey, reader_id, gen, after_preamble
@@ -114,7 +114,7 @@ def decode(reader_secp_privkey: PrivateKey,
     if not cmetadata.startswith(preamble):
         return None
     after_preamble = cmetadata[len(preamble):]
-    if len(after_preamble) != FULL_LENGTH:
+    if len(after_preamble) != DATA_LENGTH:
         return None
     if not check_sig(after_preamble):
         return None

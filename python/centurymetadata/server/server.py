@@ -20,7 +20,7 @@ os.umask(0o002)
 #   <dirmin>-<dirmax>/            <- directory: groups ~1024 bundles, named by
 #     <bmin>-<bmax>/              <-   min-max reader_id hex prefix of contents
 #       <reader_id>+<writer>/     <- record dir (empty = authorized, not yet written)
-#         <gen_hex>               <- record file: exactly FULL_LENGTH bytes,
+#         <gen_hex>               <- record file: exactly DATA_LENGTH bytes,
 #     <bmin>-<bmax>.old/          <-   preamble stripped and verified on upload.
 #     ...                         <- .old dirs kept ~1hr after a split for in-flight
 #   <dirmin>-<dirmax>/            <-   fetchxor queries, then cleaned up.
@@ -361,13 +361,13 @@ def listbundles() -> None:
 
 
 def assemble_bundle(bundle_path: str) -> bytes:
-    """Pack records from a bundle dir into 1024 × FULL_LENGTH bytes, sorted by
+    """Pack records from a bundle dir into 1024 × DATA_LENGTH bytes, sorted by
     reader_id, with empty slots zero-padded.  Each record file is exactly
-    FULL_LENGTH bytes (preamble already stripped on upload)."""
+    DATA_LENGTH bytes (preamble already stripped on upload)."""
     entries = sorted([e for e in os.listdir(bundle_path)
                       if os.path.isdir(os.path.join(bundle_path, e)) and '+' in e])
 
-    result = bytearray(1024 * centurymetadata.FULL_LENGTH)
+    result = bytearray(1024 * centurymetadata.DATA_LENGTH)
 
     for i, entry in enumerate(entries[:1024]):
         entry_path = os.path.join(bundle_path, entry)
@@ -376,8 +376,8 @@ def assemble_bundle(bundle_path: str) -> bytes:
             continue
         with open(os.path.join(entry_path, gens[-1]), 'rb') as f:
             data = f.read()
-        slot_start = i * centurymetadata.FULL_LENGTH
-        result[slot_start:slot_start + centurymetadata.FULL_LENGTH] = data[:centurymetadata.FULL_LENGTH]
+        slot_start = i * centurymetadata.DATA_LENGTH
+        result[slot_start:slot_start + centurymetadata.DATA_LENGTH] = data[:centurymetadata.DATA_LENGTH]
 
     return bytes(result)
 
@@ -408,7 +408,7 @@ def fetchxor(directory: str) -> None:
     bundles = sorted([b for b in os.listdir(dir_path)
                       if os.path.isdir(os.path.join(dir_path, b)) and is_range_name(b)])
 
-    result = bytearray(1024 * centurymetadata.FULL_LENGTH)
+    result = bytearray(1024 * centurymetadata.DATA_LENGTH)
 
     for idx, bundle_name in enumerate(bundles):
         if idx >= 1024:

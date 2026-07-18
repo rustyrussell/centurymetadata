@@ -39,7 +39,7 @@ from kyber_py.ml_kem import ML_KEM_1024
 from secp256k1 import PrivateKey, ffi, lib, secp256k1_ctx
 
 from centurymetadata.constants import (
-    preamble as PREAMBLE, FULL_LENGTH, MLKEM_CT_LENGTH, DATA_LENGTH, AES_LENGTH,
+    preamble as PREAMBLE, DATA_LENGTH, MLKEM_CT_LENGTH, PLAINTEXT_LENGTH, AES_LENGTH,
 )
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -51,7 +51,7 @@ PURPOSE = 0x44315441         # BIP-32 purpose field: bytes spell 'D','1','T','A'
 SECP256K1_N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 VERSION_STR = "centurymetadata v1"   # 18 bytes, no NUL
 
-# FULL_LENGTH, MLKEM_CT_LENGTH, DATA_LENGTH and PREAMBLE come from
+# DATA_LENGTH, MLKEM_CT_LENGTH, PLAINTEXT_LENGTH and PREAMBLE come from
 # centurymetadata.constants (generated from SPECIFICATION.md by
 # tools/generate_constants.py) rather than being duplicated here: this
 # script's job is to independently re-derive the *cryptographic*
@@ -360,12 +360,12 @@ def generate_vector(mnemonic: str, n: int) -> dict:
         + CONTENTS.encode("utf-8") + b"\x00"
     )
     compressed = zlib.compress(raw_plaintext, level=9)
-    data_padded = compressed + b"\x00" * (DATA_LENGTH - len(compressed))
-    assert len(data_padded) == DATA_LENGTH
+    data_padded = compressed + b"\x00" * (PLAINTEXT_LENGTH - len(compressed))
+    assert len(data_padded) == PLAINTEXT_LENGTH
     results["DATA"] = _r(
-        f'"DATA: ZLIB([TYPE\\0NAME\\0CONTENTS\\0]+), padded with 0 bytes to {DATA_LENGTH}". '
+        f'"DATA: ZLIB([TYPE\\0NAME\\0CONTENTS\\0]+), padded with 0 bytes to {PLAINTEXT_LENGTH}". '
         f"zlib(TYPE||NUL||NAME||NUL||CONTENTS||NUL) = {len(compressed)} bytes, "
-        f"zero-padded to {DATA_LENGTH}. This is the AES plaintext.",
+        f"zero-padded to {PLAINTEXT_LENGTH}. This is the AES plaintext.",
         data_padded.hex())
 
     # AES
@@ -382,7 +382,7 @@ def generate_vector(mnemonic: str, n: int) -> dict:
 
     # SIG
     content = writer_pub + reader_id + gen_bytes + mlkem_ct + aes_field
-    assert len(content) == FULL_LENGTH - 64
+    assert len(content) == DATA_LENGTH - 64
 
     sig_hash = hashlib.sha256(tag_val + tag_val + content).digest()
     sig = _schnorr_sign(writer_secp_priv, sig_hash, schnorr_aux_rand)
@@ -395,7 +395,7 @@ def generate_vector(mnemonic: str, n: int) -> dict:
 
     # RECORD
     record = PREAMBLE + sig + content
-    assert len(record) == len(PREAMBLE) + FULL_LENGTH
+    assert len(record) == len(PREAMBLE) + DATA_LENGTH
     results["RECORD"] = _r(
         f"Complete file: preamble ({len(PREAMBLE)} bytes) "
         "|| SIG[64] || WRITER_PUBKEY[33] || READER_ID[32] || GEN[8] "
