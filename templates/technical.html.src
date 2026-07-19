@@ -37,21 +37,13 @@
 
       <div class="row">
 	<h2>File Format</h2>
-	<div class="col-md-3">
+	<div class="col-md-6">
 	  <p>
 	    $FILE_FORMAT_PARA1
 	  </p>
 	</div>
 
-	<div class="col-auto">
-	  <div class="p-3 border bg-light">
-	    <pre>
-$FILE_FORMAT_HEADER$FILE_FORMAT_LITERAL_POSTHDR
-	    </pre>
-	  </div>
-	</div>
-
-	<div class="col-md-3">
+	<div class="col-md-6">
 	  <p>
 	    $FILE_FORMAT_PARA2
 	  </p>
