@@ -143,11 +143,39 @@ if __name__ == "__main__":
 
     # ── Actions ───────────────────────────────────────────────────────────────
 
-    if args.decode:
+    # Default is fetch and decode
+    if not args.decode and not args.encode and not args.check and not args.fetch:
+        fetch = True
+        decode = True
+    else:
+        fetch = args.fetch
+        decode = args.decode
+
+    if fetch:
+        if reader_id is None:
+            print("Needs --reader, --reader-secret, or --bip39", file=sys.stderr)
+            exit(1)
+        slot = fetch_slot(args.server, reader_id)
+        if slot is None:
+            print("Record not found", file=sys.stderr)
+            exit(1)
+        record = centurymetadata.preamble + slot
+        if args.raw:
+            sys.stdout.buffer.write(record)
+        else:
+            print(record.hex())
+
+    if decode:
         if reader_secp_privkey is None or reader_mlkem_privkey is None:
             print("Decode needs --reader-secret or --bip39", file=sys.stderr)
             exit(1)
-        if args.decode.startswith('@'):
+        if fetch:
+            decode_data = record
+            if not args.raw:
+                import struct
+                gen = struct.unpack('>Q', slot[64 + 33 + 32:64 + 33 + 32 + 8])[0]
+                print("generation: {}".format(gen))
+        elif args.decode.startswith('@'):
             decode_data = open(args.decode[1:], "rb").read()
         else:
             decode_data = bytes.fromhex(args.decode)
@@ -204,47 +232,3 @@ if __name__ == "__main__":
             if len(b) == 0:
                 break
         exit(0)
-
-    elif args.fetch:
-        if reader_id is None:
-            print("Needs --reader, --reader-secret, or --bip39", file=sys.stderr)
-            exit(1)
-        slot = fetch_slot(args.server, reader_id)
-        if slot is None:
-            print("Record not found", file=sys.stderr)
-            exit(1)
-        record = centurymetadata.preamble + slot
-        if args.raw:
-            sys.stdout.buffer.write(record)
-        else:
-            print(record.hex())
-
-    else:
-        # Default: fetch and decode (requires reader secret keys)
-        if reader_id is None or reader_secp_privkey is None or reader_mlkem_privkey is None:
-            print("Provide --bip39 (or --reader-secret) to fetch and decode your record,\n"
-                  "or use --encode / --decode / --check / --fetch for other operations.",
-                  file=sys.stderr)
-            exit(1)
-
-        slot = fetch_slot(args.server, reader_id)
-        if slot is None:
-            print("No record found for this reader_id", file=sys.stderr)
-            exit(1)
-
-        # Extract generation from slot: SIG[64] | WRITER[33] | READER_ID[32] | GEN[8]
-        import struct
-        gen = struct.unpack('>Q', slot[64 + 33 + 32:64 + 33 + 32 + 8])[0]
-        if not args.raw:
-            print("generation: {}".format(gen))
-
-        ret = centurymetadata.decode(reader_secp_privkey, reader_mlkem_privkey,
-                                     centurymetadata.preamble + slot)
-        if ret is None:
-            print("decode failed", file=sys.stderr)
-            exit(1)
-        for rtype, name, body in ret:
-            print("{}:".format(rtype))
-            print(name)
-            print(body)
-            print()
