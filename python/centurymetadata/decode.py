@@ -286,7 +286,12 @@ def decode(reader_secp_privkey: PrivateKey,
     # - If `WRITER_PUBKEY` equals the pubkey the reader itself would derive at
     #   `0x44315441'/N'/0'` (for the `N` used to derive this file's reader keys):
     #   - The file is referred to as "to-self".
-    to_self = (wkey == writer_secp_pubkey)
+    # [NOTE: secp256k1.PublicKey has no __eq__, so == falls back to object
+    # [NOTE: identity -- always False here, since wkey is freshly
+    # [NOTE: reconstructed from file bytes in split_parts() and can never
+    # [NOTE: be the same object as the caller's writer_secp_pubkey.
+    # [NOTE: Compare the serialized bytes instead.]
+    to_self = (wkey.serialize() == writer_secp_pubkey.serialize())
 
     # CMDATA-SPEC/Reader Requirements:
     # - MUST compute the 32-byte `MLKEM_SECRET` by decapsulating `MLKEM_CT`.
