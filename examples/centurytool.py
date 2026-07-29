@@ -6,6 +6,7 @@ import argparse
 import json
 import requests
 import sys
+from typing import Optional
 
 
 # ── Fetch helper ─────────────────────────────────────────────────────────────
@@ -85,6 +86,48 @@ def parse_reader_secret(secret_str: str) -> tuple:
     return secp_privkey, mlkem_pk, mlkem_sk
 
 
+def identity_for_slot(seed: bytes, n: int) -> centurymetadata.Identity:
+    """Derive the full Identity (writer + reader keys) for bip39 derivation slot n."""
+    w_secp_bytes, r_secp_bytes, w_mlkem_seed, r_mlkem_seed = derive_cm_keys(seed, n)
+    writer_privkey = secp256k1.PrivateKey(w_secp_bytes)
+    reader_secp_privkey = secp256k1.PrivateKey(r_secp_bytes)
+    reader_mlkem_pubkey, reader_mlkem_privkey = centurymetadata.derive_mlkem_keypair(r_mlkem_seed)
+    return centurymetadata.Identity(writer_privkey, reader_secp_privkey, reader_mlkem_pubkey, reader_mlkem_privkey)
+
+
+def load_chain(server: str, seed: bytes, start_n: int, start_raw: bytes) -> centurymetadata.CenturyMetadata:
+    """Load derivation slot start_n (already-fetched start_raw), then keep
+    following `next cmdata derivation path` records, fetching and loading
+    each subsequent slot, for as long as the bip39 seed can derive its
+    identity."""
+    doc = centurymetadata.CenturyMetadata()
+    n: Optional[int] = start_n
+    raw = start_raw
+    while n is not None:
+        identity = identity_for_slot(seed, n)
+        try:
+            _wkey, _reader_id, gen, _after = centurymetadata.deconstruct(raw)
+            print("slot {} generation: {}".format(n, gen), file=sys.stderr)
+        except ValueError:
+            pass
+        errors, next_n = doc.load(identity, n, raw)
+        for e in errors:
+            print("WARNING: partial decode of slot {} due to record {}: {}".format(
+                n, e.record_index, e), file=sys.stderr)
+        if any(e.fatal for e in errors):
+            print("decode of slot {} failed".format(n), file=sys.stderr)
+            break
+        if next_n is None:
+            break
+        next_slot = fetch_slot(server, identity_for_slot(seed, next_n).reader_id)
+        if next_slot is None:
+            print("Chain continues to slot {} but it could not be fetched".format(next_n), file=sys.stderr)
+            break
+        n = next_n
+        raw = centurymetadata.preamble + next_slot
+    return doc
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="centurymetadata tool — default action is fetch+decode when reader keys are available")
@@ -119,13 +162,14 @@ if __name__ == "__main__":
 
     if args.bip39:
         seed = bip39_to_seed(args.bip39, args.passphrase)
-        w_secp_bytes, r_secp_bytes, w_mlkem_seed, r_mlkem_seed = derive_cm_keys(seed, args.slot)
+        identity0 = identity_for_slot(seed, args.slot)
 
-        writer_privkey = secp256k1.PrivateKey(w_secp_bytes)
-        reader_secp_privkey = secp256k1.PrivateKey(r_secp_bytes)
-        reader_secp_pubkey = reader_secp_privkey.pubkey
-        reader_mlkem_pubkey, reader_mlkem_privkey = centurymetadata.derive_mlkem_keypair(r_mlkem_seed)
-        reader_id = centurymetadata.get_reader_id(reader_secp_pubkey, reader_mlkem_pubkey)
+        writer_privkey = identity0.writer_privkey
+        reader_secp_privkey = identity0.reader_secp_privkey
+        reader_secp_pubkey = identity0.reader_secp_pubkey
+        reader_mlkem_pubkey = identity0.reader_mlkem_pubkey
+        reader_mlkem_privkey = identity0.reader_mlkem_privkey
+        reader_id = identity0.reader_id
         print("reader_id: {}".format(reader_id.hex()), file=sys.stderr)
 
     if args.reader_secret:
@@ -169,34 +213,46 @@ if __name__ == "__main__":
         if reader_secp_privkey is None or reader_mlkem_privkey is None:
             print("Decode needs --reader-secret or --bip39", file=sys.stderr)
             exit(1)
-        if fetch:
-            decode_data = record
-            if not args.raw:
-                import struct
-                gen = struct.unpack('>Q', slot[64 + 33 + 32:64 + 33 + 32 + 8])[0]
-                print("generation: {}".format(gen))
-        elif args.decode.startswith('@'):
-            decode_data = open(args.decode[1:], "rb").read()
+        if fetch and args.bip39:
+            # Uses the higher-level CenturyMetadata class: since --bip39
+            # derives a full Identity (including the writer key) for any
+            # slot, it can follow `next cmdata derivation path` records
+            # across the chain, not just decode the one fetched slot.
+            doc = load_chain(args.server, seed, args.slot, record)
+            for rec in doc.records:
+                print(rec.rtype)
+                print(rec.name)
+                print(rec.contents)
+                print()
         else:
-            decode_data = bytes.fromhex(args.decode)
-        # Prepend preamble if not already present (slot-only input)
-        if not decode_data.startswith(centurymetadata.preamble):
-            decode_data = centurymetadata.preamble + decode_data
-        # The reader's own writer pubkey (for "to-self" detection), if known.
-        own_writer_pubkey = writer_privkey.pubkey if writer_privkey is not None else reader_secp_pubkey
-        errors, ret = centurymetadata.decode(reader_secp_privkey, reader_mlkem_privkey, reader_mlkem_pubkey,
-                                             own_writer_pubkey, decode_data)
-        if any(e.fatal for e in errors):
+            if fetch:
+                decode_data = record
+                if not args.raw:
+                    import struct
+                    gen = struct.unpack('>Q', slot[64 + 33 + 32:64 + 33 + 32 + 8])[0]
+                    print("generation: {}".format(gen))
+            elif args.decode.startswith('@'):
+                decode_data = open(args.decode[1:], "rb").read()
+            else:
+                decode_data = bytes.fromhex(args.decode)
+            # Prepend preamble if not already present (slot-only input)
+            if not decode_data.startswith(centurymetadata.preamble):
+                decode_data = centurymetadata.preamble + decode_data
+            # The reader's own writer pubkey (for "to-self" detection), if known.
+            own_writer_pubkey = writer_privkey.pubkey if writer_privkey is not None else reader_secp_pubkey
+            errors, ret = centurymetadata.decode(reader_secp_privkey, reader_mlkem_privkey, reader_mlkem_pubkey,
+                                                 own_writer_pubkey, decode_data)
+            if any(e.fatal for e in errors):
+                for e in errors:
+                    print(f"decode failed: {e}", file=sys.stderr)
+                exit(1)
             for e in errors:
-                print(f"decode failed: {e}", file=sys.stderr)
-            exit(1)
-        for e in errors:
-            print(f"WARNING: partial decode due to record {e.record_index}: {e}", file=sys.stderr)
-        for rtype, name, body in ret:
-            print(rtype)
-            print(name)
-            print(body)
-            print()
+                print(f"WARNING: partial decode due to record {e.record_index}: {e}", file=sys.stderr)
+            for rtype, name, body in ret:
+                print(rtype)
+                print(name)
+                print(body)
+                print()
 
     elif args.encode:
         if reader_secp_pubkey is None or reader_mlkem_pubkey is None:
