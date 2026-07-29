@@ -102,8 +102,7 @@ A reader of a century metadata file:
   - MAY choose not to process all type records (e.g. to display `bitcoin wallet labels` fields).
   - If the reader chooses not to fully process the file:
     - SHOULD indicate this omission to the user.
-- If `MLKEM_CT` does not successfully decapsulate to a 32-byte `MLKEM_SECRET`:
-  - MUST fail parsing.
+- MUST compute the 32-byte `MLKEM_SECRET` by decapsulating `MLKEM_CT`.
 - MUST compute `ECDH_SECRET` as SHA256 of the 33-byte compressed EC point from [Diffie-Hellman](#ref-ecdh) of `WRITER_PUBKEY` and `READER_SECP_PRIVKEY`.
 - MUST SHA256 the concatenation of `ECDH_SECRET`, `MLKEM_SECRET` and `GEN` to derive the `AESKEY`.
 - MUST use `AESKEY` to [AES](#ref-aes)-256-[GCM](#ref-gcm)-decrypt the `AES` bytes (immediately following `MLKEM_CT`), using a 12-byte all-zero nonce.
@@ -113,15 +112,20 @@ A reader of a century metadata file:
 - MUST ignore any bytes remaining after the zlib stream.
 - MUST parse the decompressed bytes as a sequence of TYPE\0NAME\0CONTENTS\0 tuples, in order:
   - MUST separate `TYPE`, `NAME` and `CONTENTS` by NUL terminators.
-  - MUST stop processing (keeping all tuples already parsed) upon reaching a tuple for which fewer than three NUL-terminated fields remain.
-  - If `TYPE` is not a known type:
+  - MUST stop processing (keeping all tuples already parsed) upon reaching a tuple for which fewer than three NUL-terminated fields remaing.
+  - If this record "fails to parse" (defined below):
+    - If this is a "to-self" file:
+      - MUST continue parsing remaining tuples
+    - Otherwise (not a "to-self" file):
+      - MAY continue parsing remaining tuples
+  - If any of `TYPE`, `NAME` or `CONTENTS` are not a valid, complete UTF-8 string:
+    - MUST fail to parse this record
+  - Otherwise, if `NAME` is greater than 255 bytes:
+    - MUST fail to parse this record
+  - Otherwise, if `TYPE` is not a known type:
     - MUST ignore that tuple and continue processing.
   - Otherwise:
-    - If `NAME` is greater than 255 bytes or the record fails to parse, as defined in the requirements specific to that `TYPE` (specified in [Individual Record Formats](#individual-record-formats)):
-      - If this is a "to-self" file:
-        - MUST continue parsing remaining tuples
-      - Otherwise (not a "to-self" file):
-        - MAY continue parsing remaining tuples
+    - See requirements specific to that `TYPE` (specified in [Individual Record Formats](#individual-record-formats)).
 
 ### Reader Requirements Rationale
 
@@ -133,7 +137,7 @@ A reader of a century metadata file:
 4. We cannot decrypt if we don't have the keys.  This is usually the `0x44315441'/0'/1'` and `0x44315441'/0'/3'` derivation, but could be different for chained files.
 5. The signature check is to protect against malicious serving or malformed files, particularly in the case where this is our own writer key (thus the data can be trusted).  The signature (after the tags) is conveniently over the entire file following the `SIG` field itself.
 6. Others could potentially write data to give to us.  This runs the risk of an exploit in our parser, so should be treated as untrusted data.  Given the sensitivity of the data we're handling, special treatment may be warranted.  But the user should at least be told the data exists!
-7. [ML-KEM](#ref-mlkem)-1024 Decaps can fail, and is expected to produce 32 bytes of data.
+7. [ML-KEM](#ref-mlkem)-1024 Decaps does not "fail" as such, it produces junk, so we cannot detect failure until we fail AES.
 8. [AES](#ref-aes)-[GCM](#ref-gcm) decryption can fail outright, which is technically redundant, but this widely-used AES mode also provides protection against accidental key reuse (in this case, non-random `MLKEM_SECRET` and duplicate `GEN` would be required, but bugs can happen).
 9. [zlib](#ref-zlib) decompression can fail (it has a 32-bit checksum).
 10. Implementations must take care not to run out of memory when decompressing; 1MB is beyond a reasonable compression ratio for this size using the [deflate](#ref-deflate) algorithm.

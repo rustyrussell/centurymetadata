@@ -70,5 +70,9 @@ def test_known_identity_round_trips_encode_decode() -> None:
     writer_privkey = PrivateKey(bytes([7] * 32))
     record = centurymetadata.encode(writer_privkey, reader_secp_pubkey, reader_mlkem_pubkey,
                                     0, ('t', 'n', 'known-keys round trip'))
-    decoded = centurymetadata.decode(reader_secp_privkey, reader_mlkem_privkey, record)
+    # Not a to-self record: the writer key here is unrelated to the reader's own.
+    other_writer_pubkey = PrivateKey(bytes([1] * 32)).pubkey
+    err, decoded = centurymetadata.decode(reader_secp_privkey, reader_mlkem_privkey, reader_mlkem_pubkey,
+                                          other_writer_pubkey, record)
+    assert err is None, f"decode failed: {err}"
     assert decoded == [('t', 'n', 'known-keys round trip')]

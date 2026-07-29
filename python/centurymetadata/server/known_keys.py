@@ -31,6 +31,7 @@ class KnownIdentity:
     self_authored: bool
     reader_secp_privkey: PrivateKey
     reader_mlkem_privkey: bytes
+    reader_mlkem_pubkey: bytes
     writer_pubkey: PublicKey  # this identity's own derived writer key
 
 
@@ -55,6 +56,7 @@ def _build_identities() -> Dict[bytes, KnownIdentity]:
             self_authored=(i < half),
             reader_secp_privkey=reader_secp_privkey,
             reader_mlkem_privkey=reader_mlkem_privkey,
+            reader_mlkem_pubkey=reader_mlkem_pubkey,
             writer_pubkey=writer_privkey.pubkey,
         )
     return identities
@@ -73,6 +75,11 @@ def required_writer_pubkey(reader_id: bytes) -> Optional[PublicKey]:
     if identity is None or not identity.self_authored:
         return None
     return identity.writer_pubkey
+
+
+def reader_identity(reader_id: bytes) -> Optional[KnownIdentity]:
+    """The full KnownIdentity for any known reader, else None."""
+    return _IDENTITIES.get(reader_id)
 
 
 def reader_privkeys(reader_id: bytes) -> Optional[Tuple[PrivateKey, bytes]]:
