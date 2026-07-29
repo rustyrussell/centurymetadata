@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 import hashlib
 import os
+import time
 from typing import Callable, Dict, List, Optional, Tuple
 
 import pytest
@@ -31,6 +32,33 @@ def make_identity_source() -> IdentitySource:
         reader_mlkem_pubkey, reader_mlkem_privkey = derive_mlkem_keypair(key_material(b"reader-mlkem"))
         return Identity(writer_privkey, reader_secp_privkey, reader_mlkem_pubkey, reader_mlkem_privkey)
     return source
+
+
+def make_cheap_identity_source() -> IdentitySource:
+    """Like make_identity_source(), but with a fake (non-keygen) ML-KEM
+    pubkey: next_slot() only ever looks at .reader_id, and that doesn't
+    depend on the ML-KEM key being real, so this skips ML-KEM-1024
+    keygen's ~3ms-per-call cost and lets grinding tests run fast."""
+    def source(n: int) -> Identity:
+        def key_material(salt: bytes) -> bytes:
+            return hashlib.sha256(salt + n.to_bytes(4, "big")).digest()
+        writer_privkey = PrivateKey(key_material(b"writer"))
+        reader_secp_privkey = PrivateKey(key_material(b"reader-secp"))
+        fake_mlkem_pubkey = key_material(b"reader-mlkem")
+        return Identity(writer_privkey, reader_secp_privkey, fake_mlkem_pubkey, b"")
+    return source
+
+
+def to_bits(data: bytes) -> str:
+    """Binary string, e.g. b'\\xff\\x0f' -> '1111111100001111'."""
+    return "".join(format(byte, "08b") for byte in data)
+
+
+def common_prefix_bits(a: bytes, b: bytes) -> int:
+    """Number of leading bits shared between a and b, found via plain
+    string comparison of their binary representations -- an independent
+    test oracle, not next_slot()'s own bit-twiddling implementation."""
+    return len(os.path.commonprefix([to_bits(a), to_bits(b)]))
 
 
 def make_store() -> Tuple[IdentitySource, Callable[[bytes], Optional[bytes]], Dict[bytes, bytes]]:
@@ -354,6 +382,58 @@ def test_authorize_slot_registers_slot_without_loading() -> None:
     doc.authorize_slot(5)
     doc.authorize_slot(0)  # idempotent
     assert doc.slots == [0, 5]
+
+
+def test_next_slot_finds_bundle_match_given_enough_time() -> None:
+    """With make_cheap_identity_source()'s fixed hash-based derivation,
+    slot 60 is the first (n > 0) whose reader_id shares >= 10 leading
+    bits with slot 0's -- verified offline; hardcoded here as the
+    expected result of a generously long grind."""
+    identity_source = make_cheap_identity_source()
+    doc = CenturyMetadata()
+    doc.authorize_slot(0)
+
+    n = doc.next_slot(identity_source, match_bits=10, timeout=2.0)
+
+    assert n == 60
+    target = identity_source(0).reader_id
+    candidate = identity_source(n).reader_id
+    print("slot  0:", to_bits(target)[:16])
+    print("slot {}:".format(n), to_bits(candidate)[:16])
+    assert common_prefix_bits(candidate, target) >= 10
+
+
+def test_next_slot_returns_best_candidate_when_time_runs_out() -> None:
+    """A timeout too short to reach slot 60 (see previous test) must
+    still return a usable slot: the best (highest-matching-prefix)
+    candidate it had time to try, not just whichever it tried last.
+
+    Candidates 1..7 score 1, 2, 0, 1, 0, 0, 2 matching bits against slot
+    0 (verified offline). A 20ms-per-candidate identity source and a
+    50ms budget deterministically tries only n=1..3 (best: n=2, 2 bits)
+    before timing out -- well short of slot 7's tying 2-bit match, let
+    alone slot 60's real one."""
+    fast_source = make_cheap_identity_source()
+
+    def slow_source(n: int) -> Identity:
+        if n != 0:
+            time.sleep(0.02)
+        return fast_source(n)
+
+    doc = CenturyMetadata()
+    doc.authorize_slot(0)
+
+    n = doc.next_slot(slow_source, match_bits=10, timeout=0.05)
+
+    target = fast_source(0).reader_id
+    candidate = fast_source(n).reader_id
+    print("slot  0:", to_bits(target)[:16])
+    print("slot {}:".format(n), to_bits(candidate)[:16])
+    common = common_prefix_bits(candidate, target)
+    assert n == 2
+    assert common == 2
+    assert common < 10
+    assert n not in doc.slots
 
 
 def test_save_reports_need_more_without_any_authorized_slots() -> None:

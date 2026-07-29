@@ -7,6 +7,7 @@ files linked by `next cmdata derivation path` records, and preserving
 records of a TYPE this code doesn't recognize across a read-modify-write
 round trip.
 """
+import time
 from typing import Callable, Dict, List, Optional, Set, Tuple, Type
 
 from secp256k1 import PrivateKey, PublicKey
@@ -161,6 +162,18 @@ def _fits_triples(triples: List[Triple]) -> bool:
     return len(compress(triples)) <= PLAINTEXT_LENGTH
 
 
+def _common_prefix_bits(a: bytes, b: bytes) -> int:
+    """Number of leading bits shared between a and b."""
+    count = 0
+    for x, y in zip(a, b):
+        if x == y:
+            count += 8
+            continue
+        count += 8 - (x ^ y).bit_length()
+        break
+    return count
+
+
 def _record_for_triple(rtype: str, name: str, contents: str) -> Record:
     cls = _TYPE_TO_CLASS.get(rtype)
     if cls is not None:
@@ -202,6 +215,37 @@ class CenturyMetadata:
         load() and authorize_slot()), in ascending order -- the fixed set
         save() writes into."""
         return sorted(self._slots)
+
+    def next_slot(self, identity_source: IdentitySource, match_bits: int = 10,
+                  timeout: float = 1.0) -> int:
+        """Pick a derivation slot index not already in `slots`, suitable
+        for authorize_slot(): one whose READER_ID shares its leading
+        `match_bits` bits with slot 0's, so it's likely to land in the
+        same server-side fetch bundle as the rest of the chain.
+
+        Grinds candidate indices upward from max(slots) + 1 (or 0, for
+        the very first slot -- which trivially matches itself) until it
+        finds one, or until `timeout` seconds have elapsed, whichever
+        comes first. On timeout, returns the candidate that got closest
+        (the longest matching prefix seen), not just the last one tried:
+        still not guaranteed to share slot 0's bundle, but the best
+        available for that."""
+        target = identity_source(0).reader_id
+        n = max(self._slots) + 1 if self._slots else 0
+        deadline = time.monotonic() + timeout
+        best_n, best_bits = n, -1
+        while True:
+            if n not in self._slots:
+                common = _common_prefix_bits(identity_source(n).reader_id, target)
+                # CMDATA-SPEC:
+                # - SHOULD choose the next `N` such that the reader key has a similar prefix.
+                if common >= match_bits:
+                    return n
+                if common > best_bits:
+                    best_n, best_bits = n, common
+            if time.monotonic() >= deadline:
+                return best_n
+            n += 1
 
     def add(self, record: Record) -> None:
         if record.rtype == NEXT_DERIVATION_TYPE:
