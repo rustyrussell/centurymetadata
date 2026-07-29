@@ -35,7 +35,7 @@ import sys
 import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from kyber_py.ml_kem import ML_KEM_1024
 from secp256k1 import PrivateKey, PublicKey
@@ -167,6 +167,12 @@ class VectorSet:
         self.basedir = basedir
         self.bundle_dir = basedir / SKELETON_DIR / SKELETON_BUNDLE
         self.manifest: List[ManifestEntry] = []
+        # In-memory only (never written to manifest.json, which is meant
+        # to be a plain, publishable index -- not a place to persist
+        # private key material): lets a test independently re-derive and
+        # decode() each vector straight from disk without needing to
+        # know which internal label/word produced it.
+        self.identities: Dict[Tuple[str, str], Identity] = {}
 
     def store(self, category: str, name: str, description: str, spec_bullets: List[str],
               expected_outcome: str, identity: Identity, gen: int, after_pre: bytes) -> None:
@@ -177,6 +183,7 @@ class VectorSet:
         record_dir.mkdir(parents=True, exist_ok=True)
         gen_hex = gen.to_bytes(8, "big").hex()
         (record_dir / gen_hex).write_bytes(after_pre)
+        self.identities[(reader_id_hex, writer_hex)] = identity
 
         for entry in self.manifest:
             if entry.reader_id == reader_id_hex and entry.writer_pubkey == writer_hex:
@@ -773,6 +780,243 @@ def gen_category_unknown_type(vs: VectorSet) -> None:
         identity, 0, after_pre)
 
 
+# ── Category 7: to-self vs not-to-self error recovery ──────────────────────────
+#
+# The exact same malformed (invalid-UTF8) middle tuple, sandwiched
+# between two valid ones, encoded twice: once with WRITER_PUBKEY equal
+# to the reader's own derived writer key ("to-self" -- trusted, so
+# decode() must keep going), once with an unrelated writer ("not-to-self"
+# -- untrusted, so decode() may stop). Combines the per-record-error and
+# to-self rules from category 3 and 4's simpler, single-rule vectors.
+
+def gen_category_to_self_vs_not(vs: VectorSet) -> None:
+    word = "noble"
+    raw = (b"text\x00before\x00valid tuple before the error\x00"
+           + b"text\x00bad\x00" + b'\xff\xfe' + b"\x00"
+           + b"text\x00after\x00valid tuple after the error\x00")
+    padded = raw_compress(raw)
+    before_triple = ("text", "before", "valid tuple before the error")
+    after_triple = ("text", "after", "valid tuple after the error")
+
+    # CMDATA-SPEC/Reader Requirements:
+    #   - If this record "fails to parse" (defined below):
+    #     - If this is a "to-self" file:
+    #       - MUST continue parsing remaining tuples
+    #     - Otherwise (not a "to-self" file):
+    #       - MAY continue parsing remaining tuples
+    to_self_identity = identity_for_word(word)
+    to_self_after_pre = build_after_pre(to_self_identity, 0, padded)
+    to_self_full = centurymetadata.preamble + to_self_after_pre
+    errors, triples = centurymetadata.decode(
+        to_self_identity.reader_secp_privkey, to_self_identity.reader_mlkem_privkey,
+        to_self_identity.reader_mlkem_pubkey, to_self_identity.writer_privkey.pubkey, to_self_full)
+    assert not any(e.fatal for e in errors)
+    assert any(e.code == CMDataErrorCode.INVALID_UTF8 for e in errors)
+    assert before_triple in triples
+    assert after_triple in triples
+    vs.store(
+        "to-self-vs-not", "to-self-continues",
+        "to-self file: an invalid-UTF8 tuple in the middle is skipped, and parsing "
+        "continues to later valid tuples.",
+        ["If this is a \"to-self\" file: MUST continue parsing remaining tuples"],
+        "decodes with a non-fatal INVALID_UTF8 error; both surrounding tuples recovered",
+        to_self_identity, 0, to_self_after_pre)
+
+    foreign_writer = throwaway_identity("to-self-vs-not/foreign-writer").writer_privkey
+    not_self_identity = identity_for_word(word, writer_privkey=foreign_writer)
+    not_self_after_pre = build_after_pre(not_self_identity, 0, padded)
+    not_self_full = centurymetadata.preamble + not_self_after_pre
+    errors2, triples2 = centurymetadata.decode(
+        not_self_identity.reader_secp_privkey, not_self_identity.reader_mlkem_privkey,
+        not_self_identity.reader_mlkem_pubkey, own_writer_pubkey(word), not_self_full)
+    assert not any(e.fatal for e in errors2)
+    assert any(e.code == CMDataErrorCode.INVALID_UTF8 for e in errors2)
+    assert before_triple in triples2
+    assert after_triple not in triples2
+    vs.store(
+        "to-self-vs-not", "not-to-self-may-stop",
+        "not-to-self file: the same invalid-UTF8 tuple, but written by an unrelated "
+        "party -- the reference implementation stops there rather than keep processing "
+        "an untrusted file.",
+        ["Otherwise (not a \"to-self\" file): MAY continue parsing remaining tuples"],
+        "decodes with a non-fatal INVALID_UTF8 error; only the tuple before the error "
+        "is recovered", not_self_identity, 0, not_self_after_pre)
+
+
+# ── Category 8: per-type CONTENTS semantics ─────────────────────────────────────
+#
+# The most complex category: realistic CONTENTS built with embit (already
+# a project dependency, via centurymetadata.validate), checked two ways --
+# centurymetadata.decode() (wire layer: none of these types are special
+# to decode.py, so "invalid content" vectors still decode cleanly) and
+# centurymetadata.validate.validate_triples() (content layer: this is
+# where "MUST fail to parse the record" for a bad PSBT/tx/descriptor/
+# labels actually gets enforced -- decode.py and CenturyMetadata's
+# per-type Record classes don't validate CONTENTS semantics at all).
+#
+# [NOTE: validate.py is stricter than the spec in two ways relevant
+# [NOTE: here: it requires non-empty NAME for every type (spec allows
+# [NOTE: empty NAME for psbt/transaction), and it rejects a wallet-labels
+# [NOTE: record outright if *any* line has an unknown `type` field
+# [NOTE: (spec says a reader MUST ignore just that one JSONL line and
+# [NOTE: keep processing the rest). The valid-content vectors below use
+# [NOTE: non-empty NAME throughout to stay compatible with validate.py;
+# [NOTE: the unknown-type-field vector is checked only via decode(), with
+# [NOTE: the validate.py gap called out explicitly in its manifest entry.]
+
+def _sample_transaction_hex() -> str:
+    from embit.script import Script
+    from embit.transaction import Transaction, TransactionInput, TransactionOutput
+    tx = Transaction(
+        vin=[TransactionInput(bytes(32), 0)],
+        vout=[TransactionOutput(1000, Script(bytes([0x76, 0xa9, 0x14]) + bytes(20) + bytes([0x88, 0xac])))])
+    return tx.serialize().hex()
+
+
+def _sample_psbt_base64() -> str:
+    from embit.psbt import PSBT
+    from embit.script import Script
+    from embit.transaction import Transaction, TransactionInput, TransactionOutput
+    tx = Transaction(
+        vin=[TransactionInput(bytes(32), 0)],
+        vout=[TransactionOutput(1000, Script(bytes([0x76, 0xa9, 0x14]) + bytes(20) + bytes([0x88, 0xac])))])
+    return PSBT(tx).to_string()
+
+
+def _sample_descriptor(seed: bytes) -> str:
+    from embit.descriptor.checksum import checksum as descriptor_checksum
+    pub = PrivateKey(seed).pubkey.serialize().hex()
+    body = "wpkh({})".format(pub)
+    return "{}#{}".format(body, descriptor_checksum(body))
+
+
+def _content_vector(vs: VectorSet, word: str, rtype: str, name: str, contents: str,
+                    purpose: str, category_name: str, spec_bullets: List[str],
+                    expect_valid: bool) -> None:
+    from centurymetadata import validate
+
+    identity = identity_for_word(word)
+    triples = [text_record(purpose), (rtype, name, contents)]
+    after_pre = encode_after_pre(identity, 0, *triples)
+    verify_clean(identity, identity.writer_privkey.pubkey, after_pre, [triples[1]])
+    err = validate.validate_triples([triples[1]])
+    if expect_valid:
+        assert err is None, err
+        outcome = "decodes cleanly; validate.validate_triples() accepts the CONTENTS"
+    else:
+        assert err is not None
+        outcome = ("decodes cleanly at the wire layer; validate.validate_triples() "
+                   "rejects the CONTENTS ({})".format(err))
+    vs.store("per-type-contents", category_name, purpose, spec_bullets, outcome, identity, 0, after_pre)
+
+
+def gen_category_per_type_contents(vs: VectorSet) -> None:
+    # CMDATA-SPEC:
+    # - MUST set `CONTENTS` to a valid base-64 encoded PSBT ([version 0](#ref-psbt) or [version 2](#ref-psbt2)).
+    _content_vector(
+        vs, "obvious", "bitcoin psbt", "Demo PSBT", _sample_psbt_base64(),
+        "A real (if minimal) PSBT, constructed and verified via embit.", "psbt-valid",
+        ["MUST set `CONTENTS` to a valid base-64 encoded PSBT ([version 0](#ref-psbt) or "
+         "[version 2](#ref-psbt2))."], expect_valid=True)
+    # CMDATA-SPEC:
+    # - If `CONTENTS` is not a valid base-64 encoded PSBT, or an unknown PSBT version:
+    #   - MUST fail to parse the record.
+    _content_vector(
+        vs, "ocean", "bitcoin psbt", "Demo PSBT", "not-a-real-psbt-at-all",
+        "CONTENTS is not a valid base64-encoded PSBT.", "psbt-invalid",
+        ["If `CONTENTS` is not a valid base-64 encoded PSBT, or an unknown PSBT version: "
+         "MUST fail to parse the record."], expect_valid=False)
+
+    # CMDATA-SPEC:
+    # - MUST set `CONTENTS` to a valid hex-encoded bitcoin transaction.
+    _content_vector(
+        vs, "oil", "bitcoin transaction", "Demo Transaction", _sample_transaction_hex(),
+        "A real (if minimal) transaction, constructed and verified via embit.", "transaction-valid",
+        ["MUST set `CONTENTS` to a valid hex-encoded bitcoin transaction."], expect_valid=True)
+    # CMDATA-SPEC:
+    # - If `CONTENTS` is not a valid hex-encoded bitcoin transaction:
+    #   - MUST fail to parse the record.
+    _content_vector(
+        vs, "orphan", "bitcoin transaction", "Demo Transaction", "not-hex-at-all",
+        "CONTENTS is not a valid hex-encoded transaction.", "transaction-invalid",
+        ["If `CONTENTS` is not a valid hex-encoded bitcoin transaction: MUST fail to "
+         "parse the record."], expect_valid=False)
+
+    # CMDATA-SPEC:
+    # - MUST place a valid script BIP-380 descriptor describing the wallet format in the `CONTENTS` field.
+    _content_vector(
+        vs, "oxygen", "bitcoin output script descriptor", "Demo Wallet",
+        _sample_descriptor(hashlib.sha256(b"gen_test_vectors descriptor oxygen").digest()),
+        "A real wpkh() descriptor with a correct checksum, constructed and verified via embit.",
+        "descriptor-valid",
+        ["MUST place a valid script BIP-380 descriptor describing the wallet format in "
+         "the `CONTENTS` field."], expect_valid=True)
+    # CMDATA-SPEC:
+    # - If `CONTENTS` is not a valid output script descriptor, OR contains a checksum which does not match:
+    #   - MUST fail to parse the record.
+    good_desc = _sample_descriptor(hashlib.sha256(b"gen_test_vectors descriptor pause").digest())
+    bad_checksum_desc = good_desc[:-1] + ("0" if good_desc[-1] != "0" else "1")
+    _content_vector(
+        vs, "pause", "bitcoin output script descriptor", "Demo Wallet", bad_checksum_desc,
+        "A wpkh() descriptor whose trailing checksum doesn't match its body.",
+        "descriptor-bad-checksum",
+        ["If `CONTENTS` is not a valid output script descriptor, OR contains a checksum "
+         "which does not match: MUST fail to parse the record."], expect_valid=False)
+    # CMDATA-SPEC:
+    # - If `CONTENTS` contains unknown or unsupported script expressions:
+    #   - MUST fail to parse the record.
+    _content_vector(
+        vs, "peasant", "bitcoin output script descriptor", "Demo Wallet",
+        "futuredescriptorfn(deadbeef)",
+        "A descriptor using a script expression this implementation (and BIP-380) "
+        "doesn't define -- e.g. a hypothetical future extension.",
+        "descriptor-unsupported-expression",
+        ["If `CONTENTS` contains unknown or unsupported script expressions: MUST fail "
+         "to parse the record."], expect_valid=False)
+
+    labels_txid = hashlib.sha256(b"gen_test_vectors demo txid").hexdigest()
+    # CMDATA-SPEC:
+    # - MUST set `CONTENTS` to the JSONL encoding of the wallet labels as per BIP-329.
+    _content_vector(
+        vs, "permit", "bitcoin wallet labels", "Demo Wallet",
+        '{{"type": "tx", "ref": "{}", "label": "Coffee"}}\n'.format(labels_txid),
+        "A single valid BIP-329 label line.", "wallet-labels-valid",
+        ["MUST set `CONTENTS` to the JSONL encoding of the wallet labels as per "
+         "[BIP-329](#ref-bip329)."], expect_valid=True)
+    # CMDATA-SPEC:
+    # - If `CONTENTS` is not valid JSONL:
+    #   - MUST fail to parse the record.
+    _content_vector(
+        vs, "piano", "bitcoin wallet labels", "Demo Wallet", '{"type": "tx", "ref": "not closed',
+        "CONTENTS is not valid JSONL (unterminated JSON object).", "wallet-labels-invalid-json",
+        ["If `CONTENTS` is not valid JSONL: MUST fail to parse the record."], expect_valid=False)
+
+    # This one is checked only via decode(), not validate.validate_triples():
+    # validate.py rejects the whole record for one unknown `type` line (see
+    # this category's opening [NOTE:]), stricter than the spec below.
+    # CMDATA-SPEC:
+    # - If `CONTENTS` contains an unknown `type` field:
+    #   - MUST ignore that object.
+    identity = identity_for_word("proof")
+    contents = ('{{"type": "future_label_type", "ref": "irrelevant"}}\n'
+                '{{"type": "tx", "ref": "{}", "label": "Coffee"}}\n').format(labels_txid)
+    triples = [text_record("One line has an unknown `type` field; a compliant reader "
+                           "ignores just that line and keeps the rest."),
+               ("bitcoin wallet labels", "Demo Wallet", contents)]
+    after_pre = encode_after_pre(identity, 0, *triples)
+    verify_clean(identity, identity.writer_privkey.pubkey, after_pre, [triples[1]])
+    from centurymetadata import validate
+    err = validate.validate_triples([triples[1]])
+    assert err is not None  # the documented validate.py-vs-spec gap
+    vs.store(
+        "per-type-contents", "wallet-labels-unknown-type-field",
+        "One JSONL line has an unknown `type` field alongside one valid line -- spec "
+        "says a reader ignores just that line; validate.py (stricter) rejects the whole "
+        "record ({}).".format(err),
+        ["If `CONTENTS` contains an unknown `type` field: MUST ignore that object."],
+        "decodes cleanly at the wire layer", identity, 0, after_pre)
+
+
 # ── Driver ──────────────────────────────────────────────────────────────────────
 
 CATEGORIES = [
@@ -782,6 +1026,8 @@ CATEGORIES = [
     gen_category_next_derivation,
     gen_category_priority_and_split,
     gen_category_unknown_type,
+    gen_category_to_self_vs_not,
+    gen_category_per_type_contents,
 ]
 
 
