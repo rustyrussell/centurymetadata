@@ -278,11 +278,11 @@ def check_content_compliance(reader_id: bytes, record: bytes) -> Optional[str]:
     if identity is None:
         return "READER_ID {} is not a known test identity".format(reader_id.hex())
 
-    err, triples = centurymetadata.decode(identity.reader_secp_privkey, identity.reader_mlkem_privkey,
-                                          identity.reader_mlkem_pubkey, identity.writer_pubkey, record)
-    if err is not None:
-        return f"Could not decrypt record for content validation: {err}"
-    assert triples is not None  # decode() only returns err=None alongside a real triples list
+    errors, triples = centurymetadata.decode(identity.reader_secp_privkey, identity.reader_mlkem_privkey,
+                                             identity.reader_mlkem_pubkey, identity.writer_pubkey, record)
+    if errors:
+        summary = "; ".join(str(e) for e in errors)
+        return f"Could not decrypt record for content validation: {summary}"
 
     return validate.validate_triples(triples)
 
