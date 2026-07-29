@@ -166,12 +166,12 @@ def test_fetchxor_contains_record(basedir: Path, keys: Dict) -> None:
         slot = bundle[i * slot_size:(i + 1) * slot_size]
         if slot[reader_id_offset:reader_id_offset + 32] == our_reader_id:
             found = True
-            err, decoded = centurymetadata.decode(
+            errors, decoded = centurymetadata.decode(
                 keys['reader_secp'], keys['reader_mlkem_sk'], keys['reader_mlkem_pk'],
                 keys['writer'].pubkey,
                 centurymetadata.preamble + slot
             )
-            assert err is None, f"decode failed: {err}"
+            assert errors == [], f"decode failed: {errors}"
             assert decoded == [('type', 'name', 'body')]
             break
     assert found

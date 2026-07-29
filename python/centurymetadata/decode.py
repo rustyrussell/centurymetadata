@@ -1,14 +1,67 @@
 from Cryptodome.Cipher import AES
 import zlib
+from dataclasses import dataclass
+from enum import Enum, auto
 from kyber_py.ml_kem import ML_KEM_1024
 from secp256k1 import PrivateKey, PublicKey
 from .constants import bip340tag, verheader, preamble, PLAINTEXT_LENGTH, AES_LENGTH, DATA_LENGTH, MLKEM_CT_LENGTH
 from .encode import get_ecdh_secret, get_aeskey, get_reader_id
-from typing import Tuple, List, Optional
+from typing import List, Tuple, Optional
+
+Triple = Tuple[str, str, str]
 
 
-def decompress(comp: bytes, to_self: bool) -> Tuple[Optional[str], Optional[List[Tuple[str, str, str]]]]:
-    """Decompress into type, name, contents triples.  If only some data was extracted, str is set to the error."""
+class CMDataErrorCode(Enum):
+    """Every way decode() can fail, whole-file or per-record."""
+    # Whole-file: nothing could be extracted from the file at all.
+    BAD_HEADER = auto()
+    BAD_LENGTH = auto()
+    BAD_WKEY = auto()
+    BAD_READER_ID = auto()
+    BAD_SIGNATURE = auto()
+    BAD_AES_TAG = auto()
+    BAD_ZLIB = auto()
+    TRUNCATED_ZLIB = auto()
+    OVERSIZE_ZLIB = auto()
+
+    # Per-record: one specific record was malformed; others may still
+    # be usable (see `fatal`, `stopped` and `record_index` on CMDataError).
+    TRUNCATED_TUPLE = auto()
+    OVERLENGTH_NAME = auto()
+    INVALID_UTF8 = auto()
+
+
+@dataclass(frozen=True)
+class CMDataError:
+    code: CMDataErrorCode
+    message: str
+    # True if no data at all could be extracted from the file: one of
+    # the whole-file failures above (bad header/length/signature/
+    # decrypt/decompress).  False for a per-record error, where other
+    # records may have been extracted successfully regardless.
+    fatal: bool
+    # True if parsing stopped at this error: no tuples after this one
+    # (whether or not any existed) were parsed.  Always true when
+    # `fatal` is true.  For a per-record error, true unless this was a
+    # to-self file (which continues past malformed records) -- except
+    # TRUNCATED_TUPLE, which the spec requires to always stop.
+    stopped: bool
+    # Which tuple (0-based, in file order) this applies to.  Only set
+    # for per-record (non-fatal) errors.
+    record_index: Optional[int] = None
+
+    def __str__(self) -> str:
+        return self.message
+
+
+def decompress(comp: bytes, to_self: bool) -> Tuple[List[CMDataError], List[Triple]]:
+    """Decompress into type, name, contents triples.
+
+    Returns (errors, triples).  A fatal error means triples is empty;
+    otherwise triples contains everything successfully extracted, and
+    errors may contain zero or more per-record failures (see
+    CMDataError.record_index and .stopped).
+    """
 
     # CMDATA-SPEC/Reader Requirements:
     # - Otherwise: (not a "to-self" file)
@@ -24,11 +77,12 @@ def decompress(comp: bytes, to_self: bool) -> Tuple[Optional[str], Optional[List
     except zlib.error:
         # CMDATA-SPEC/Reader Requirements:
         # - MUST fail parsing if the decrypted bytes do not contain a valid [zlib](#ref-zlib) stream.
-        return "not a valid zlib stream", None
+        return [CMDataError(CMDataErrorCode.BAD_ZLIB, "not a valid zlib stream", fatal=True, stopped=True)], []
 
     # Incomplete/truncated?
     if not decompressor.eof:
-        return "truncated zlib stream", None
+        return [CMDataError(CMDataErrorCode.TRUNCATED_ZLIB, "truncated zlib stream",
+                            fatal=True, stopped=True)], []
 
     # CMDATA-SPEC/Reader Requirements:
     # - MUST ignore any bytes remaining after the zlib stream.
@@ -40,31 +94,37 @@ def decompress(comp: bytes, to_self: bool) -> Tuple[Optional[str], Optional[List
     # [NOTE: (see https://zlib.net/zlib_tech.html), so it's OK for our Python code, and the zlib API doesn't]
     # [NOTE: allow a maximum bound anyway.]
     if len(uncomp) > 1048576:
-        return "oversize zlib stream", None
+        return [CMDataError(CMDataErrorCode.OVERSIZE_ZLIB, "oversize zlib stream",
+                            fatal=True, stopped=True)], []
 
     # CMDATA-SPEC/Reader Requirements:
     # - MUST parse the decompressed bytes as a sequence of TYPE\0NAME\0CONTENTS\0 tuples, in order:
     #   - MUST separate `TYPE`, `NAME` and `CONTENTS` by NUL terminators.
     fields = uncomp.split(sep=bytes(1))
-    ret: List[Tuple[str, str, str]] = []
+    ret: List[Triple] = []
+    errors: List[CMDataError] = []
 
-    recorderr = None
     # split() above will leave an empty string for the final NUL.
+    index = 0
     while fields != [b""]:
         # CMDATA-SPEC/Reader Requirements:
         #   - MUST stop processing (keeping all tuples already parsed)
         #     upon reaching a tuple for which fewer than three
         #     NUL-terminated fields remaing.
         if len(fields) < 3:
-            if recorderr is None:
-                recorderr = "unexpected remaining tuples"
+            errors.append(CMDataError(CMDataErrorCode.TRUNCATED_TUPLE, "unexpected remaining tuples",
+                                      fatal=False, stopped=True, record_index=index))
             break
+
+        record_failed = False
 
         # CMDATA-SPEC/Reader Requirements:
         #   - Otherwise, if `NAME` is greater than 255 bytes:
         #     - MUST fail to parse this record
         if len(fields[1]) > 255:
-            recorderr = "overlength name field"
+            errors.append(CMDataError(CMDataErrorCode.OVERLENGTH_NAME, "overlength name field",
+                                      fatal=False, stopped=not to_self, record_index=index))
+            record_failed = True
 
         # CMDATA-SPEC/Reader Requirements:
         #   - If any of `TYPE`, `NAME` or `CONTENTS` are not a valid, complete UTF-8 string:
@@ -74,10 +134,13 @@ def decompress(comp: bytes, to_self: bool) -> Tuple[Optional[str], Optional[List
             namestr = fields[1].decode('utf8')
             contentstr = fields[2].decode('utf8')
         except UnicodeDecodeError:
-            recorderr = "invalid UTF-8 in tuple"
+            errors.append(CMDataError(CMDataErrorCode.INVALID_UTF8, "invalid UTF-8 in tuple",
+                                      fatal=False, stopped=not to_self, record_index=index))
+            record_failed = True
 
         # Consumed those.
         fields = fields[3:]
+        index += 1
 
         # CMDATA-SPEC/Reader Requirements:
         #   - Otherwise, if `TYPE` is not a known type:
@@ -92,12 +155,14 @@ def decompress(comp: bytes, to_self: bool) -> Tuple[Optional[str], Optional[List
         #       - MUST continue parsing remaining tuples
         #     - Otherwise (not a "to-self" file):
         #       - MAY continue parsing remaining tuples
-        if recorderr is not None and to_self is False:
+        if record_failed:
+            if to_self:
+                continue
             break
 
         ret.append((typestr, namestr, contentstr))
 
-    return recorderr, ret
+    return errors, ret
 
 
 def unaes(aeskey: bytes, encrypted: bytes) -> Optional[bytes]:
@@ -174,19 +239,31 @@ def decode(reader_secp_privkey: PrivateKey,
            reader_mlkem_privkey: bytes,
            reader_mlkem_pubkey: bytes,
            writer_secp_pubkey: PublicKey,
-           cmetadata: bytes) -> Tuple[Optional[str], Optional[List[Tuple[str, str, str]]]]:
+           cmetadata: bytes) -> Tuple[List[CMDataError], List[Triple]]:
+    """Decode a century metadata file.
+
+    Returns (errors, triples).  A fatal error (errors[0].fatal) means
+    triples is empty; otherwise triples contains everything
+    successfully extracted, and errors may additionally contain zero
+    or more non-fatal, per-record failures.
+    """
     # CMDATA-SPEC/Reader Requirements:
     # - MUST fail parsing if the first 19 bytes of the file are not `centurymetadata v1\0` (where the 19th byte is a NUL).
     if not cmetadata.startswith(verheader):
-        return "Not a Century Metadata file", None
+        return [CMDataError(CMDataErrorCode.BAD_HEADER, "Not a Century Metadata file",
+                            fatal=True, stopped=True)], []
     after_preamble = cmetadata[len(preamble):]
     # CMDATA-SPEC/Reader Requirements:
     # - MUST fail parsing if the length of the file is not exactly 17571 bytes.
     # - MUST otherwise ignore the first 1187 bytes (the literal header).
     if len(after_preamble) != DATA_LENGTH:
-        return "Invalid length for a Century Metadata file", None
+        return [CMDataError(CMDataErrorCode.BAD_LENGTH, "Invalid length for a Century Metadata file",
+                            fatal=True, stopped=True)], []
 
-    sig, wkey, reader_id, gen, mlkem_ct, encrypted = split_parts(after_preamble)
+    try:
+        sig, wkey, reader_id, gen, mlkem_ct, encrypted = split_parts(after_preamble)
+    except ValueError as e:
+        return [CMDataError(CMDataErrorCode.BAD_WKEY, str(e), fatal=True, stopped=True)], []
 
     # CMDATA-SPEC/Reader Requirements:
     # - MUST fail parsing if `READER_ID` does not equal
@@ -195,14 +272,15 @@ def decode(reader_secp_privkey: PrivateKey,
 
     expected_reader_id = get_reader_id(reader_secp_privkey.pubkey, reader_mlkem_pubkey)
     if expected_reader_id != reader_id:
-        return "Incorrrect READER_ID", None
+        return [CMDataError(CMDataErrorCode.BAD_READER_ID, "Incorrrect READER_ID",
+                            fatal=True, stopped=True)], []
 
     # CMDATA-SPEC/Reader Requirements:
     # - MUST fail parsing if `SIG` is not a valid [BIP-340](#ref-bip340)
     #   signature by `WRITER_PUBKEY` over
     #   SHA256(`TAG`|`TAG`|`WRITER_PUBKEY`|`READER_ID`|`GEN`|`MLKEM_CT`|`AES`).
     if not wkey.schnorr_verify(after_preamble[64:], sig, bip340tag):
-        return "Invalid signature", None
+        return [CMDataError(CMDataErrorCode.BAD_SIGNATURE, "Invalid signature", fatal=True, stopped=True)], []
 
     # CMDATA-SPEC/Reader Requirements:
     # - If `WRITER_PUBKEY` equals the pubkey the reader itself would derive at
@@ -231,6 +309,6 @@ def decode(reader_secp_privkey: PrivateKey,
     # - MUST fail parsing if the trailing 16-byte authentication tag does not verify.
     comp = unaes(aeskey, encrypted)
     if comp is None:
-        return "Invalid secret key", None
+        return [CMDataError(CMDataErrorCode.BAD_AES_TAG, "Invalid secret key", fatal=True, stopped=True)], []
 
     return decompress(comp, to_self)

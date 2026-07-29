@@ -89,7 +89,7 @@ def test_vector_record_decodes(idx: int, mnemonic: str, n: int, canned_vectors: 
     writer_pubkey = PublicKey(bytes.fromhex(res["WRITER_PUBKEY"]["value"]), raw=True)
     record = bytes.fromhex(res["RECORD"]["value"])
 
-    err, decoded = centurymetadata.decode(reader_secp_key, reader_mlkem_sk, reader_mlkem_pk,
-                                          writer_pubkey, record)
-    assert err is None, f"centurymetadata.decode() returned error: {err}"
+    errors, decoded = centurymetadata.decode(reader_secp_key, reader_mlkem_sk, reader_mlkem_pk,
+                                             writer_pubkey, record)
+    assert errors == [], f"centurymetadata.decode() returned errors: {errors}"
     assert decoded == [(pv["TYPE"]["value"], pv["NAME"]["value"], pv["CONTENTS"]["value"])]
