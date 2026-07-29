@@ -28,10 +28,9 @@ def test_compress() -> None:
     assert len(ret) == PLAINTEXT_LENGTH
     assert zlib.decompress(ret) == bytes((0x61, 0, 0x62, 0, 0x63, 0, 0x64, 0, 0x65, 0)) + bytes("f", encoding="utf8") * 90000 + bytes(1)
 
-    # Test too-long triples.
+    # Test too-long triples (they're OK, assertion moved to caller)
     triples = [('a', 'b', ''.join(random.choices(string.printable, k=90000)))]
-    with pytest.raises(ValueError, match="length too great"):
-        compress(triples)
+    compress(triples)
 
 
 def test_aes() -> None:
