@@ -182,10 +182,15 @@ if __name__ == "__main__":
         # Prepend preamble if not already present (slot-only input)
         if not decode_data.startswith(centurymetadata.preamble):
             decode_data = centurymetadata.preamble + decode_data
-        ret = centurymetadata.decode(reader_secp_privkey, reader_mlkem_privkey, decode_data)
+        # The reader's own writer pubkey (for "to-self" detection), if known.
+        own_writer_pubkey = writer_privkey.pubkey if writer_privkey is not None else reader_secp_pubkey
+        err, ret = centurymetadata.decode(reader_secp_privkey, reader_mlkem_privkey, reader_mlkem_pubkey,
+                                          own_writer_pubkey, decode_data)
         if ret is None:
-            print("decode failed", file=sys.stderr)
+            print(f"decode failed: {err}", file=sys.stderr)
             exit(1)
+        if err is not None:
+            print(f"WARNING: partial decode due to {err}", file=sys.stderr)
         for rtype, name, body in ret:
             print(rtype)
             print(name)
