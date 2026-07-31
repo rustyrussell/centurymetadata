@@ -33,7 +33,7 @@ import json
 import os
 import sys
 import zlib
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -86,17 +86,26 @@ def identity_for_word(word: str, writer_privkey: Optional[PrivateKey] = None, n:
                     reader_mlkem_pubkey, reader_mlkem_privkey)
 
 
-def writer_privkey_for(label: str) -> PrivateKey:
-    """A deterministic, distinct writer keypair for `label` -- lets many
-    vectors share one reader_id while still getting distinct
-    <reader_id>+<writer> mirror directories."""
-    return PrivateKey(hashlib.sha256(b"gen_test_vectors writer " + label.encode()).digest())
+def illegal_identity(writer_word: str) -> Identity:
+    """The fixed "illegal" reader_id, signed with a foreign writer key
+    derived from `writer_word`'s own mnemonic -- a distinct word per
+    vector lets many vectors share one reader_id while still getting
+    distinct <reader_id>+<writer> mirror directories, and lets the
+    manifest name the writer as a mnemonic word instead of raw hex."""
+    return identity_for_word(ILLEGAL_WORD, identity_for_word(writer_word).writer_privkey)
 
 
-def illegal_identity(label: str) -> Identity:
-    """The fixed "illegal" reader_id, with a fresh writer key per label --
-    used for every deliberately-invalid (can't/shouldn't decode) vector."""
-    return identity_for_word(ILLEGAL_WORD, writer_privkey_for("illegal/" + label))
+def deterministic_filler(label: str, n: int) -> bytes:
+    """n deterministic pseudo-random bytes -- reproducible across runs
+    (unlike os.urandom()), so a filler record's exact compressed size
+    (and thus whether it forces a chain split) is stable from run to
+    run rather than merely probable."""
+    out = bytearray()
+    counter = 0
+    while len(out) < n:
+        out += hashlib.sha256("{} {}".format(label, counter).encode()).digest()
+        counter += 1
+    return bytes(out[:n])
 
 
 # ── Low-level record building (mirrors encode.py's pipeline, but lets us
@@ -154,10 +163,13 @@ class ManifestEntry:
     name: str
     description: str
     spec_bullets: List[str]
-    expected_outcome: str
-    reader_id: str
-    writer_pubkey: str
-    gens: List[int] = field(default_factory=list)
+    path: str
+    reader: str
+    n: int
+    gen: int
+    records: object  # List[Dict[str, str]] if valid tuples, else a plain str fallback
+    writer: Optional[str] = None
+    invalid: Optional[str] = None
 
 
 class VectorSet:
@@ -175,8 +187,27 @@ class VectorSet:
         self.identities: Dict[Tuple[str, str], Identity] = {}
 
     def store(self, category: str, name: str, description: str, spec_bullets: List[str],
-              expected_outcome: str, identity: Identity, gen: int, after_pre: bytes) -> None:
+              word: str, n: int, identity: Identity, gen: int, after_pre: bytes,
+              invalid: Optional[str] = None,
+              records: Optional[List[Tuple[str, str, str]]] = None,
+              plaintext: Optional[bytes] = None,
+              writer: Optional[str] = None) -> None:
+        """records is the record's TYPE/NAME/CONTENTS tuples, when they're
+        well-formed (the common case -- most vectors are built from an
+        actual triples list, even the crypto-broken ones, since we know
+        what was intended even though a reader never recovers it).
+        plaintext is the fallback for the handful of vectors whose
+        deliberately malformed plaintext doesn't parse into tuples at
+        all (truncated/invalid-UTF8 tuples, or garbage standing in for
+        a broken zlib stream): the raw decrypted-and-decompressed (or
+        would-be) bytes, decoded best-effort. At most one of the two;
+        omitting both (e.g. a multi-megabyte oversize-zlib payload) is
+        fine too. writer is the mnemonic word for the foreign writer key
+        actually embedded in this record, when it's not this identity's
+        own self-authored writer key -- omit it for the common
+        self-authored case."""
         assert len(after_pre) == centurymetadata.DATA_LENGTH
+        assert records is None or plaintext is None
         reader_id_hex = identity.reader_id.hex()
         writer_hex = identity.writer_privkey.pubkey.serialize().hex()
         record_dir = self.bundle_dir / (reader_id_hex + "+" + writer_hex)
@@ -185,46 +216,43 @@ class VectorSet:
         (record_dir / gen_hex).write_bytes(after_pre)
         self.identities[(reader_id_hex, writer_hex)] = identity
 
-        for entry in self.manifest:
-            if entry.reader_id == reader_id_hex and entry.writer_pubkey == writer_hex:
-                entry.gens.append(gen)
-                return
+        path = "{}/{}/{}+{}/{}".format(SKELETON_DIR, SKELETON_BUNDLE, reader_id_hex, writer_hex, gen_hex)
+
+        records_json: object = None
+        if records is not None:
+            records_json = [{"type": t, "name": nm, "contents": c} for t, nm, c in records]
+        elif plaintext is not None:
+            records_json = plaintext.decode("utf-8", errors="backslashreplace")
+
         self.manifest.append(ManifestEntry(
             category=category, name=name, description=description, spec_bullets=spec_bullets,
-            expected_outcome=expected_outcome, reader_id=reader_id_hex, writer_pubkey=writer_hex,
-            gens=[gen]))
+            path=path, reader=word, n=n, gen=gen, records=records_json,
+            writer=writer, invalid=invalid))
 
     def write_manifest(self) -> None:
-        data = [
-            {
+        data = []
+        for e in self.manifest:
+            d = {
+                "path": e.path,
                 "category": e.category,
                 "name": e.name,
-                "description": e.description,
-                "spec_bullets": e.spec_bullets,
-                "expected_outcome": e.expected_outcome,
-                "reader_id": e.reader_id,
-                "writer_pubkey": e.writer_pubkey,
-                "gens": e.gens,
-                "path": "{}/{}/{}+{}".format(SKELETON_DIR, SKELETON_BUNDLE, e.reader_id, e.writer_pubkey),
+                "reader": e.reader,
+                "n": e.n,
+                "gen": e.gen,
             }
-            for e in self.manifest
-        ]
+            if e.writer is not None:
+                d["writer"] = e.writer
+            if e.invalid is not None:
+                d["invalid"] = e.invalid
+            if e.records is not None:
+                d["records"] = e.records
+            d["description"] = e.description
+            d["spec_bullets"] = e.spec_bullets
+            data.append(d)
         (self.basedir / "manifest.json").write_text(json.dumps(data, indent=2) + "\n")
 
 
 # ── Extra identity helper ──────────────────────────────────────────────────────
-
-def throwaway_identity(label: str) -> Identity:
-    """A fully valid, but not "known", identity for scenarios that just
-    need *some* distinct reader/writer keys -- e.g. a file legitimately
-    encoded for a different reader than the one storing/fetching it."""
-    def key(salt: bytes) -> bytes:
-        return hashlib.sha256(salt + label.encode()).digest()
-    writer_privkey = PrivateKey(key(b"writer"))
-    reader_secp_privkey = PrivateKey(key(b"reader-secp"))
-    reader_mlkem_pubkey, reader_mlkem_privkey = centurymetadata.derive_mlkem_keypair(key(b"reader-mlkem"))
-    return Identity(writer_privkey, reader_secp_privkey, reader_mlkem_pubkey, reader_mlkem_privkey)
-
 
 def own_writer_pubkey(word: str) -> PublicKey:
     """The pubkey decode() needs for "to-self" detection: `word`'s own
@@ -266,7 +294,7 @@ def gen_category_baseline(vs: VectorSet) -> None:
         "baseline", "single-record", "Simplest valid file: one text record, self-authored.",
         ["MUST begin the file with the literal header.",
          "SHOULD set GEN to 0."],
-        "decodes cleanly to exactly one triple", identity, 0, after_pre)
+        "margin", 0, identity, 0, after_pre, records=triples)
 
 
 # ── Category 2: GEN ordering ────────────────────────────────────────────────────
@@ -288,7 +316,7 @@ def gen_category_gen_ordering(vs: VectorSet) -> None:
             "gen-ordering", "gen-{}".format(gen), note,
             ["SHOULD set GEN to 0."] if gen == 0 else
             ["MUST set GEN to a number greater than all previous such files."],
-            "decodes cleanly", identity, gen, after_pre)
+            "melody", 0, identity, gen, after_pre, records=triples)
 
 
 # ── Category 3: wire/crypto-layer Reader Requirement failures ─────────────────
@@ -307,15 +335,17 @@ def _wire_bad_wkey(vs: VectorSet, own_pub: PublicKey) -> None:
     # CMDATA-SPEC/Reader Requirements:
     # - MUST fail parsing if `SIG` is not a valid [BIP-340](#ref-bip340) signature by `WRITER_PUBKEY` over
     #   SHA256(`TAG`|`TAG`|`WRITER_PUBKEY`|`READER_ID`|`GEN`|`MLKEM_CT`|`AES`).
-    identity = illegal_identity("bad_wkey")
-    mutable = bytearray(encode_after_pre(identity, 0, text_record("n/a: fails before decrypt")))
+    identity = illegal_identity("quantum")
+    triples = [text_record("n/a: fails before decrypt")]
+    mutable = bytearray(encode_after_pre(identity, 0, *triples))
     mutable[WKEY_OFF:WKEY_OFF + 1] = b'\x00'  # 0x00 is not a valid compressed-point prefix
     after_pre = bytes(mutable)
     verify_error(identity, own_pub, after_pre, CMDataErrorCode.BAD_WKEY)
     vs.store(
         "wire-errors", "bad-wkey", "WRITER_PUBKEY is not a valid compressed secp256k1 point.",
         ["MUST fail parsing if `SIG` is not a valid BIP-340 signature by `WRITER_PUBKEY`..."],
-        "CMDataErrorCode.BAD_WKEY", identity, 0, after_pre)
+        ILLEGAL_WORD, 0, identity, 0, after_pre, invalid="CMDataErrorCode.BAD_WKEY", records=triples,
+        writer="quantum")
 
 
 def _wire_bad_reader_id(vs: VectorSet, own_pub: PublicKey) -> None:
@@ -324,16 +354,18 @@ def _wire_bad_reader_id(vs: VectorSet, own_pub: PublicKey) -> None:
     # embedded READER_ID.
     # CMDATA-SPEC/Reader Requirements:
     # - MUST fail parsing if `READER_ID` does not equal [SHA256](#ref-sha256)(`READER_SECP_PUBKEY`|`READER_MLKEM_PUBKEY`) for a keypair the reader holds the secrets to.
-    other = throwaway_identity("bad-reader-id/other-party")
-    after_pre = encode_after_pre(other, 0, text_record("n/a: encoded for a different reader"))
-    identity = illegal_identity("bad_reader_id")
+    other = identity_for_word("rebel")
+    triples = [text_record("n/a: encoded for a different reader")]
+    after_pre = encode_after_pre(other, 0, *triples)
+    identity = illegal_identity("rebel")
     verify_error(identity, own_pub, after_pre, CMDataErrorCode.BAD_READER_ID)
     vs.store(
         "wire-errors", "bad-reader-id",
         "READER_ID in the file belongs to a different reader than the one fetching it.",
         ["MUST fail parsing if `READER_ID` does not equal SHA256(`READER_SECP_PUBKEY`|"
          "`READER_MLKEM_PUBKEY`) for a keypair the reader holds the secrets to."],
-        "CMDataErrorCode.BAD_READER_ID", identity, 0, after_pre)
+        ILLEGAL_WORD, 0, identity, 0, after_pre, invalid="CMDataErrorCode.BAD_READER_ID", records=triples,
+        writer="rebel")
 
 
 def _wire_bad_signature(vs: VectorSet, own_pub: PublicKey) -> None:
@@ -341,8 +373,9 @@ def _wire_bad_signature(vs: VectorSet, own_pub: PublicKey) -> None:
     # CMDATA-SPEC/Reader Requirements:
     # - MUST fail parsing if `SIG` is not a valid [BIP-340](#ref-bip340) signature by `WRITER_PUBKEY` over
     #   SHA256(`TAG`|`TAG`|`WRITER_PUBKEY`|`READER_ID`|`GEN`|`MLKEM_CT`|`AES`).
-    identity = illegal_identity("bad_signature")
-    mutable = bytearray(encode_after_pre(identity, 0, text_record("n/a: fails before decrypt")))
+    identity = illegal_identity("quiz")
+    triples = [text_record("n/a: fails before decrypt")]
+    mutable = bytearray(encode_after_pre(identity, 0, *triples))
     mutable[SIG_OFF] ^= 0xFF
     after_pre = bytes(mutable)
     verify_error(identity, own_pub, after_pre, CMDataErrorCode.BAD_SIGNATURE)
@@ -350,7 +383,8 @@ def _wire_bad_signature(vs: VectorSet, own_pub: PublicKey) -> None:
         "wire-errors", "bad-signature", "SIG does not verify against WRITER_PUBKEY.",
         ["MUST fail parsing if `SIG` is not a valid BIP-340 signature by `WRITER_PUBKEY` "
          "over SHA256(`TAG`|`TAG`|`WRITER_PUBKEY`|`READER_ID`|`GEN`|`MLKEM_CT`|`AES`)."],
-        "CMDataErrorCode.BAD_SIGNATURE", identity, 0, after_pre)
+        ILLEGAL_WORD, 0, identity, 0, after_pre, invalid="CMDataErrorCode.BAD_SIGNATURE", records=triples,
+        writer="quiz")
 
 
 def _wire_bad_aes_tag(vs: VectorSet, own_pub: PublicKey) -> None:
@@ -358,9 +392,10 @@ def _wire_bad_aes_tag(vs: VectorSet, own_pub: PublicKey) -> None:
     # real writer key) so only the tag check fails.
     # CMDATA-SPEC/Reader Requirements:
     # - MUST fail parsing if the trailing 16-byte authentication tag does not verify.
-    identity = illegal_identity("bad_aes_tag")
+    identity = illegal_identity("rebuild")
     gen = 0
-    comp = centurymetadata.compress([text_record("n/a: fails before decompress")])
+    triples = [text_record("n/a: fails before decompress")]
+    comp = centurymetadata.compress(triples)
     ecdh_secret = centurymetadata.get_ecdh_secret(identity.writer_privkey, identity.reader_secp_pubkey)
     mlkem_secret, mlkem_ct = ML_KEM_1024.encaps(identity.reader_mlkem_pubkey)
     aeskey = centurymetadata.get_aeskey(ecdh_secret, mlkem_secret, gen)
@@ -371,14 +406,15 @@ def _wire_bad_aes_tag(vs: VectorSet, own_pub: PublicKey) -> None:
     vs.store(
         "wire-errors", "bad-aes-tag", "AES-GCM authentication tag does not verify.",
         ["MUST fail parsing if the trailing 16-byte authentication tag does not verify."],
-        "CMDataErrorCode.BAD_AES_TAG", identity, gen, after_pre)
+        ILLEGAL_WORD, 0, identity, gen, after_pre, invalid="CMDataErrorCode.BAD_AES_TAG", records=triples,
+        writer="rebuild")
 
 
 def _wire_bad_zlib(vs: VectorSet, own_pub: PublicKey) -> None:
     # Decrypted plaintext isn't a valid zlib stream at all.
     # CMDATA-SPEC/Reader Requirements:
     # - MUST fail parsing if the decrypted bytes do not contain a valid [zlib](#ref-zlib) stream.
-    identity = illegal_identity("bad_zlib")
+    identity = illegal_identity("rescue")
     gen = 0
     padded = os.urandom(centurymetadata.PLAINTEXT_LENGTH)
     after_pre = build_after_pre(identity, gen, padded)
@@ -386,7 +422,8 @@ def _wire_bad_zlib(vs: VectorSet, own_pub: PublicKey) -> None:
     vs.store(
         "wire-errors", "bad-zlib", "Decrypted DATA is not a valid zlib stream.",
         ["MUST fail parsing if the decrypted bytes do not contain a valid zlib stream."],
-        "CMDataErrorCode.BAD_ZLIB", identity, gen, after_pre)
+        ILLEGAL_WORD, 0, identity, gen, after_pre, invalid="CMDataErrorCode.BAD_ZLIB",
+        writer="rescue")
 
 
 def _wire_truncated_zlib(vs: VectorSet, own_pub: PublicKey) -> None:
@@ -395,7 +432,7 @@ def _wire_truncated_zlib(vs: VectorSet, own_pub: PublicKey) -> None:
     # truncation as the same requirement as an outright-invalid stream.
     # CMDATA-SPEC/Reader Requirements:
     # - MUST fail parsing if the decrypted bytes do not contain a valid [zlib](#ref-zlib) stream.
-    identity = illegal_identity("truncated_zlib")
+    identity = illegal_identity("rival")
     gen = 0
     raw = b"text\x00note\x00enough content that truncating it is unambiguous, not accidentally valid\x00"
     comp_full = zlib.compress(raw, level=9)
@@ -412,14 +449,15 @@ def _wire_truncated_zlib(vs: VectorSet, own_pub: PublicKey) -> None:
     vs.store(
         "wire-errors", "truncated-zlib", "Decrypted DATA is a zlib stream cut short of its end marker.",
         ["MUST fail parsing if the decrypted bytes do not contain a valid zlib stream."],
-        "CMDataErrorCode.TRUNCATED_ZLIB", identity, gen, after_pre)
+        ILLEGAL_WORD, 0, identity, gen, after_pre, invalid="CMDataErrorCode.TRUNCATED_ZLIB",
+        plaintext=raw, writer="rival")
 
 
 def _wire_oversize_zlib(vs: VectorSet, own_pub: PublicKey) -> None:
     # Valid, small zlib stream that decompresses past 1MB.
     # CMDATA-SPEC/Reader Requirements:
     # - MUST fail parsing if the decompressed size would exceed 1048576 bytes.
-    identity = illegal_identity("oversize_zlib")
+    identity = illegal_identity("rocket")
     gen = 0
     huge = bytes(2_000_000)
     comp = zlib.compress(huge, level=9)
@@ -430,7 +468,8 @@ def _wire_oversize_zlib(vs: VectorSet, own_pub: PublicKey) -> None:
     vs.store(
         "wire-errors", "oversize-zlib", "Decompressed size would exceed 1048576 bytes.",
         ["MUST fail parsing if the decompressed size would exceed 1048576 bytes."],
-        "CMDataErrorCode.OVERSIZE_ZLIB", identity, gen, after_pre)
+        ILLEGAL_WORD, 0, identity, gen, after_pre, invalid="CMDataErrorCode.OVERSIZE_ZLIB",
+        writer="rocket")
 
 
 def _wire_truncated_tuple(vs: VectorSet, own_pub: PublicKey) -> None:
@@ -438,7 +477,7 @@ def _wire_truncated_tuple(vs: VectorSet, own_pub: PublicKey) -> None:
     # CMDATA-SPEC/Reader Requirements:
     #   - MUST stop processing (keeping all tuples already parsed) upon reaching a tuple for which fewer than three
     #     NUL-terminated fields remaing.
-    identity = illegal_identity("truncated_tuple")
+    identity = illegal_identity("salmon")
     gen = 0
     raw = (b"text\x00note\x00a complete tuple first\x00"
            b"text\x00dangling incomplete tuple missing its final NUL")
@@ -449,7 +488,8 @@ def _wire_truncated_tuple(vs: VectorSet, own_pub: PublicKey) -> None:
         "wire-errors", "truncated-tuple", "Final tuple is missing one or more NUL-terminated fields.",
         ["MUST stop processing (keeping all tuples already parsed) upon reaching a tuple "
          "for which fewer than three NUL-terminated fields remaing."],
-        "CMDataErrorCode.TRUNCATED_TUPLE", identity, gen, after_pre)
+        ILLEGAL_WORD, 0, identity, gen, after_pre, invalid="CMDataErrorCode.TRUNCATED_TUPLE",
+        plaintext=raw, writer="salmon")
 
 
 def _wire_invalid_utf8(vs: VectorSet, own_pub: PublicKey) -> None:
@@ -457,7 +497,7 @@ def _wire_invalid_utf8(vs: VectorSet, own_pub: PublicKey) -> None:
     # CMDATA-SPEC/Reader Requirements:
     #   - If any of `TYPE`, `NAME` or `CONTENTS` are not a valid, complete UTF-8 string:
     #     - MUST fail to parse this record
-    identity = illegal_identity("invalid_utf8")
+    identity = illegal_identity("satisfy")
     gen = 0
     raw = b"text\x00note\x00" + b'\xff\xfe\xfd' + b"\x00"
     padded = raw_compress(raw)
@@ -467,7 +507,8 @@ def _wire_invalid_utf8(vs: VectorSet, own_pub: PublicKey) -> None:
         "wire-errors", "invalid-utf8", "CONTENTS field is not valid, complete UTF-8.",
         ["If any of `TYPE`, `NAME` or `CONTENTS` are not a valid, complete UTF-8 string: "
          "MUST fail to parse this record"],
-        "CMDataErrorCode.INVALID_UTF8", identity, gen, after_pre)
+        ILLEGAL_WORD, 0, identity, gen, after_pre, invalid="CMDataErrorCode.INVALID_UTF8",
+        plaintext=raw, writer="satisfy")
 
 
 def _wire_overlength_name(vs: VectorSet, own_pub: PublicKey) -> None:
@@ -475,7 +516,7 @@ def _wire_overlength_name(vs: VectorSet, own_pub: PublicKey) -> None:
     # CMDATA-SPEC/Reader Requirements:
     #   - Otherwise, if `NAME` is greater than 255 bytes:
     #     - MUST fail to parse this record
-    identity = illegal_identity("overlength_name")
+    identity = illegal_identity("scatter")
     gen = 0
     raw = b"text\x00" + b"n" * 300 + b"\x00overlength name test\x00"
     padded = raw_compress(raw)
@@ -484,7 +525,8 @@ def _wire_overlength_name(vs: VectorSet, own_pub: PublicKey) -> None:
     vs.store(
         "wire-errors", "overlength-name", "NAME field exceeds 255 bytes.",
         ["Otherwise, if `NAME` is greater than 255 bytes: MUST fail to parse this record"],
-        "CMDataErrorCode.OVERLENGTH_NAME", identity, gen, after_pre)
+        ILLEGAL_WORD, 0, identity, gen, after_pre, invalid="CMDataErrorCode.OVERLENGTH_NAME",
+        plaintext=raw, writer="scatter")
 
 
 def gen_category_wire_errors(vs: VectorSet) -> None:
@@ -538,12 +580,12 @@ def _next_derivation_valid_chain(vs: VectorSet) -> None:
         ["MUST set `CONTENTS` to the derivation path `N` for the next file, as the ASCII "
          "representation of a decimal number.",
          "MUST choose `N` for the next file greater than this one."],
-        "decodes cleanly; CenturyMetadata.load() reports next_n=1", id0, 0, after_pre0)
+        word, 0, id0, 0, after_pre0, records=triples0)
     vs.store(
         "next-derivation", "valid-chain-n1", "Second file of the chain, at N=1.",
         ["SHOULD fetch the file for that `N` value and continue processing records from "
          "that after this file."],
-        "decodes cleanly; chain ends here (no further next-derivation record)", id1, 1, after_pre1)
+        word, 1, id1, 1, after_pre1, records=triples1)
 
 
 def _next_derivation_bad_contents_not_decimal(vs: VectorSet) -> None:
@@ -568,7 +610,10 @@ def _next_derivation_bad_contents_not_decimal(vs: VectorSet) -> None:
         "`next cmdata derivation path` CONTENTS is not a valid decimal number.",
         ["MUST fail to parse the record if `CONTENTS` is not a valid decimal number, or is "
          "not greater than `N` for this file."],
-        "decodes cleanly overall; CenturyMetadata.load() reports next_n=None", identity, 0, after_pre)
+        word, 0, identity, 0, after_pre,
+        invalid="`next cmdata derivation path` CONTENTS is not a valid decimal number "
+                "(that record must fail to parse; the rest of the file is unaffected).",
+        records=triples)
 
 
 def _next_derivation_bad_contents_not_greater(vs: VectorSet) -> None:
@@ -593,7 +638,10 @@ def _next_derivation_bad_contents_not_greater(vs: VectorSet) -> None:
         "`next cmdata derivation path` CONTENTS equals this file's own N, not greater.",
         ["MUST fail to parse the record if `CONTENTS` is not a valid decimal number, or is "
          "not greater than `N` for this file."],
-        "decodes cleanly overall; CenturyMetadata.load() reports next_n=None", identity, 0, after_pre)
+        word, 0, identity, 0, after_pre,
+        invalid="`next cmdata derivation path` CONTENTS is not greater than N (that record "
+                "must fail to parse; the rest of the file is unaffected).",
+        records=triples)
 
 
 def _next_derivation_duplicate_records(vs: VectorSet) -> None:
@@ -617,8 +665,10 @@ def _next_derivation_duplicate_records(vs: VectorSet) -> None:
         "next-derivation", "duplicate-records",
         "Two `next cmdata derivation path` records in the same file.",
         ["MUST NOT follow multiple `next cmdata derivation path` records in the same file."],
-        "decodes cleanly; CenturyMetadata.load() follows only the first (next_n=1)",
-        identity, 0, after_pre)
+        word, 0, identity, 0, after_pre,
+        invalid="file contains two `next cmdata derivation path` records (writer MUST NOT "
+                "create more than one); reader must ignore all but the first.",
+        records=triples)
 
 
 def gen_category_next_derivation(vs: VectorSet) -> None:
@@ -678,8 +728,7 @@ def _priority_ordering(vs: VectorSet) -> None:
         "order (descriptor, psbt/transaction, wallet labels).",
         ["MUST write tuples in decreasing priority order (see [Suggested Type Priorities]"
          "(#suggested-type-priorities))."],
-        "decodes cleanly; on-wire TYPE order is descriptor, psbt, transaction, wallet-labels",
-        identity, 0, after_pre)
+        word, 0, identity, 0, after_pre, records=triples)
 
 
 def _priority_split_chain(vs: VectorSet) -> None:
@@ -691,9 +740,16 @@ def _priority_split_chain(vs: VectorSet) -> None:
 
     doc = CenturyMetadata()
     doc.add(DescriptorRecord("pkh(placeholder-small-descriptor)", "Demo Wallet"))
-    # Incompressible filler forces a split: this won't fit alongside the
-    # descriptor once a next-derivation-path tail is reserved.
-    doc.add(TransactionRecord(os.urandom(8000).hex(), name=""))
+    # Filler forces a split: hex-of-random-bytes still compresses (each
+    # byte becomes two hex nibbles from a 16-symbol alphabet, which
+    # zlib can exploit even though the underlying bytes are random), so
+    # this needs to be big enough to still exceed PLAINTEXT_LENGTH once
+    # compressed alongside the descriptor and a next-derivation-path
+    # tail, even though it fits (just) on its own -- verified
+    # empirically against the real compress() pipeline; deterministic
+    # so that fact doesn't depend on which random bytes a given run
+    # happens to draw.
+    doc.add(TransactionRecord(deterministic_filler("priority-split-filler", 12550).hex(), name=""))
     doc.authorize_slot(0)
     doc.authorize_slot(1)
 
@@ -714,14 +770,25 @@ def _priority_split_chain(vs: VectorSet) -> None:
 
     for n, data in files:
         after_pre = data[len(centurymetadata.preamble):]
+        file_identity = id0 if n == 0 else id1
+        errors, triples = centurymetadata.decode(
+            file_identity.reader_secp_privkey, file_identity.reader_mlkem_privkey,
+            file_identity.reader_mlkem_pubkey, file_identity.writer_privkey.pubkey, data)
+        assert not any(e.fatal for e in errors)
+        # Confirm content actually landed on *this* file, not just that
+        # the pair adds up to 2 records overall (decode() -- unlike
+        # CenturyMetadata.load() -- still returns the next-derivation-path
+        # tuple itself, so exclude it before counting real content).
+        real_records = [t for t in triples if t[0] != NEXT_DERIVATION_TYPE]
+        assert len(real_records) == 1, "expected exactly 1 real record on file N={}, got {}".format(
+            n, real_records)
         vs.store(
             "priority-ordering", "oversized-split-n{}".format(n),
             "Part of a 2-file chain: an oversized record set split across derivation "
             "slots N=0 and N=1 (this is file N={}).".format(n),
             ["Add a `next cmdata derivation path` type record and place the remaining "
              "tuples in the next century metadata file."],
-            "decodes cleanly; the 2 files round-trip via CenturyMetadata.load() to the "
-            "original 2 records", id0 if n == 0 else id1, n, after_pre)
+            word, n, file_identity, n, after_pre, records=triples)
 
 
 def gen_category_priority_and_split(vs: VectorSet) -> None:
@@ -769,6 +836,7 @@ def gen_category_unknown_type(vs: VectorSet) -> None:
     assert unknowns[0].rtype == "_experimental widget"
     assert unknowns[0].contents == ("Some future, non-standard record type this "
                                     "implementation doesn't recognize but must still preserve.")
+    triples = [(u.rtype, u.name, u.contents) for u in unknowns]
 
     vs.store(
         "unknown-type", "underscore-prefixed",
@@ -776,8 +844,7 @@ def gen_category_unknown_type(vs: VectorSet) -> None:
         "untouched even though this implementation doesn't recognize it.",
         ["If it uses a `TYPE` not defined in this specification: MUST begin the type "
          "string with `_`."],
-        "decodes cleanly; round-trips through CenturyMetadata.load() unchanged",
-        identity, 0, after_pre)
+        word, 0, identity, 0, after_pre, records=triples)
 
 
 # ── Category 7: to-self vs not-to-self error recovery ──────────────────────────
@@ -819,10 +886,12 @@ def gen_category_to_self_vs_not(vs: VectorSet) -> None:
         "to-self file: an invalid-UTF8 tuple in the middle is skipped, and parsing "
         "continues to later valid tuples.",
         ["If this is a \"to-self\" file: MUST continue parsing remaining tuples"],
-        "decodes with a non-fatal INVALID_UTF8 error; both surrounding tuples recovered",
-        to_self_identity, 0, to_self_after_pre)
+        word, 0, to_self_identity, 0, to_self_after_pre,
+        invalid="middle tuple has invalid UTF-8 bytes in CONTENTS (per-record failure); "
+                "to-self file, so the reader must continue past it.",
+        plaintext=raw)
 
-    foreign_writer = throwaway_identity("to-self-vs-not/foreign-writer").writer_privkey
+    foreign_writer = identity_for_word("scorpion").writer_privkey
     not_self_identity = identity_for_word(word, writer_privkey=foreign_writer)
     not_self_after_pre = build_after_pre(not_self_identity, 0, padded)
     not_self_full = centurymetadata.preamble + not_self_after_pre
@@ -839,8 +908,11 @@ def gen_category_to_self_vs_not(vs: VectorSet) -> None:
         "party -- the reference implementation stops there rather than keep processing "
         "an untrusted file.",
         ["Otherwise (not a \"to-self\" file): MAY continue parsing remaining tuples"],
-        "decodes with a non-fatal INVALID_UTF8 error; only the tuple before the error "
-        "is recovered", not_self_identity, 0, not_self_after_pre)
+        word, 0, not_self_identity, 0, not_self_after_pre,
+        invalid="middle tuple has invalid UTF-8 bytes in CONTENTS (per-record failure); "
+                "not-to-self file, so the reader may stop there (this reference "
+                "implementation does).",
+        plaintext=raw, writer="scorpion")
 
 
 # ── Category 8: per-type CONTENTS semantics ─────────────────────────────────────
@@ -902,12 +974,12 @@ def _content_vector(vs: VectorSet, word: str, rtype: str, name: str, contents: s
     err = validate.validate_triples([triples[1]])
     if expect_valid:
         assert err is None, err
-        outcome = "decodes cleanly; validate.validate_triples() accepts the CONTENTS"
+        invalid = None
     else:
         assert err is not None
-        outcome = ("decodes cleanly at the wire layer; validate.validate_triples() "
-                   "rejects the CONTENTS ({})".format(err))
-    vs.store("per-type-contents", category_name, purpose, spec_bullets, outcome, identity, 0, after_pre)
+        invalid = "validate.validate_triples() rejects the CONTENTS: {}".format(err)
+    vs.store("per-type-contents", category_name, purpose, spec_bullets, word, 0, identity, 0, after_pre,
+             invalid=invalid, records=triples)
 
 
 def gen_category_per_type_contents(vs: VectorSet) -> None:
@@ -1014,7 +1086,7 @@ def gen_category_per_type_contents(vs: VectorSet) -> None:
         "says a reader ignores just that line; validate.py (stricter) rejects the whole "
         "record ({}).".format(err),
         ["If `CONTENTS` contains an unknown `type` field: MUST ignore that object."],
-        "decodes cleanly at the wire layer", identity, 0, after_pre)
+        "proof", 0, identity, 0, after_pre, records=triples)
 
 
 # ── Driver ──────────────────────────────────────────────────────────────────────
