@@ -16,7 +16,7 @@ check-mypy:
 # Checks that SPEC/BIP quotes embedded in source comments still say what
 # the spec (SPECIFICATION.md) or the referenced BIPs actually say.
 check-spec:
-	cd python && uv run spectate check --config ../specquotes.toml  --comment-aside "# [NOTE:" -k $$(find centurymetadata tests -name '*.py') $$(find ../tools -name '*.py')
+	cd python && uv run greatspectate check -k --config ../specquotes.toml --comment-aside "# [NOTE:" -k $$(find centurymetadata tests -name '*.py') $$(find ../tools -name '*.py')
 
 # Catches vars/templates drifting out of sync with the checked-in generated files.
 check-docs:

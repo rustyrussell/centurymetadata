@@ -21,7 +21,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "flake8" },
-    { name = "greatspectations", marker = "python_full_version >= '3.11'" },
+    { name = "greatspectations", marker = "python_full_version >= '3.10'" },
     { name = "mypy" },
     { name = "pytest", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pytest", version = "9.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
@@ -39,7 +39,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "flake8" },
-    { name = "greatspectations", marker = "python_full_version >= '3.11'", specifier = ">=0.1.1" },
+    { name = "greatspectations", marker = "python_full_version >= '3.10'", specifier = ">=0.2.3" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "requests" },
@@ -313,11 +313,14 @@ wheels = [
 
 [[package]]
 name = "greatspectations"
-version = "0.1.1"
+version = "0.2.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/9d/b4/b8c30c338f2145dfef59d285704d307dfa0f6e92f0dbbb36c046d7623732/greatspectations-0.1.1.tar.gz", hash = "sha256:be0c83218c9bf3734a29398ca2490736bf031cbac2b09a9f5930c020041cef67", size = 32196, upload-time = "2026-07-23T02:36:08.566Z" }
+dependencies = [
+    { name = "tomli", marker = "python_full_version == '3.10.*'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5f/3c/25700b4de2c63826cef9c1864d116b028d8984dafc3dabc8c08285530329/greatspectations-0.2.3.tar.gz", hash = "sha256:ad15b2cde353adfbe9e159c83e724cf6584c62fc18d5b4eddbd5f906d84c5cd4", size = 47084, upload-time = "2026-07-30T05:48:57.248Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/08/1a/59b920e6fc360ddc1fc185ac4c67c205bee935fa7bafb7ac7b9b027bc214/greatspectations-0.1.1-py3-none-any.whl", hash = "sha256:f47d719bba56c80c0ebc5aa4d402dfc402d8944ba47029417272a511186f96ed", size = 23518, upload-time = "2026-07-23T02:36:07.075Z" },
+    { url = "https://files.pythonhosted.org/packages/32/ac/4d2e30b0d3d456775a23e6b7cd1e229e34fd5e6ec0c047edf6fb24fad479/greatspectations-0.2.3-py3-none-any.whl", hash = "sha256:c49a32959fec1032729352a5d851977cbbe5cd90791479c5c844de5e59835313", size = 32618, upload-time = "2026-07-30T05:48:55.812Z" },
 ]
 
 [[package]]

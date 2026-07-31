@@ -29,5 +29,5 @@ dev = [
     "flake8",
     "mypy",
     "requests",
-    "greatspectations>=0.1.1; python_version>='3.11'",
+    "greatspectations>=0.2.3; python_version>='3.10'",
 ]
