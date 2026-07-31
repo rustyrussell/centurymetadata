@@ -1103,6 +1103,19 @@ CATEGORIES = [
 ]
 
 
+def generate(directory: Path) -> VectorSet:
+    """Populate a fresh BASEDIR (the skeleton dir must not already exist)
+    with every generated test vector plus its manifest.json -- the
+    reusable core of this script, also driving tools/localserver.py."""
+    (directory / SKELETON_DIR / SKELETON_BUNDLE).mkdir(parents=True)
+
+    vs = VectorSet(directory)
+    for category in CATEGORIES:
+        category(vs)
+    vs.write_manifest()
+    return vs
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path, help="BASEDIR to populate (must not already exist)")
@@ -1111,13 +1124,8 @@ def main() -> None:
     if args.directory.exists():
         print("{} already exists; refusing to overwrite".format(args.directory), file=sys.stderr)
         sys.exit(1)
-    (args.directory / SKELETON_DIR / SKELETON_BUNDLE).mkdir(parents=True)
 
-    vs = VectorSet(args.directory)
-    for category in CATEGORIES:
-        category(vs)
-    vs.write_manifest()
-
+    vs = generate(args.directory)
     print("Wrote {} vectors to {}".format(len(vs.manifest), args.directory), file=sys.stderr)
 
 
