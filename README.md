@@ -68,7 +68,7 @@ Returns a JSON array of objects, each giving the `directory` and `bundle` names 
 
 ### Retrieving Entries: POST /api/v1/fetchxor/{DIRECTORY}
 
-POST a 128-byte bitmask (one bit per bundle in the directory) as `Content-Type: application/octet-stream`. The server XORs together every bundle whose bit is set and returns the result as `Content-Type: application/x-centurymetadata`: always 1024 x 8192 = 8,388,608 bytes.  Setting a single bit simply returns that bundle.
+POST a 128-byte bitmask (one bit per bundle in the directory) as `Content-Type: application/octet-stream`. The server XORs together every bundle whose bit is set and returns the result as `Content-Type: application/x-centurymetadata`: always 1024 x 16384 = 16,777,216 bytes.  Setting a single bit simply returns that bundle.
 
 For *private* retrieval, query two servers with complementary bitmasks (one with your bundle's bit set, one with it cleared, all other bits matching): XOR the two responses together to recover your bundle without either server learning which one you wanted.
 
