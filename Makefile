@@ -32,6 +32,21 @@ TESTMODE ?=
 localserver:
 	cd python && uv run python3 ../tools/localserver.py --port=$(PORT) $(if $(TESTMODE),--test-mode)
 
+CLIENT_DIR := ../centurymetadata-ai-experimental-client
+
+# make localexplorer -- runs a local centurymetadata server plus the
+# ai-experimental-client's dev server, wired together, so you can browse
+# to http://localhost:5173 and use the Network Explorer against local data.
+localexplorer:
+	@test -d $(CLIENT_DIR) || { echo "$(CLIENT_DIR) not found: clone centurymetadata-ai-experimental-client alongside this repo" >&2; exit 1; }
+	@set -e; \
+	trap 'kill $$SERVER_PID 2>/dev/null' EXIT INT TERM; \
+	( cd python && uv run python3 ../tools/localserver.py --port=$(PORT) $(if $(TESTMODE),--test-mode) ) & \
+	SERVER_PID=$$!; \
+	sleep 2; \
+	kill -0 $$SERVER_PID 2>/dev/null || { echo "Local server failed to start on port $(PORT) (see error above) -- is something else already using it? Try: make localexplorer PORT=<other-port>" >&2; exit 1; }; \
+	cd $(CLIENT_DIR) && CM_LOCAL_API=http://localhost:$(PORT) npm run dev
+
 TAGS:
 	etags `find . -name '*.py'`
 
