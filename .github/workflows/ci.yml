@@ -21,7 +21,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: python
-        run: uv sync --extra dev
+        run: uv sync --group dev
 
       - name: Run tests (includes examples/EXAMPLES.md checks)
         run: make check
