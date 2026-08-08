@@ -1,0 +1,90 @@
+DECLARATION OF INITIAL ENDOWMENT
+AND
+ASSET TRANSFER AGREEMENT
+
+Century Metadata Stiftung
+
+This Declaration of Initial Endowment and Asset Transfer Agreement (the “Agreement”) is made on [Date]
+
+BETWEEN:
+
+[Full legal name of Founder 1],
+[Address],
+(hereinafter the “Founder”)
+
+AND:
+
+Century Metadata Stiftung,
+a foundation to be registered under Swiss law with its seat in [City], Canton of [e.g. Zug],
+(hereinafter the “Foundation”)
+
+(collectively the “Parties”)
+
+RECITALS
+
+A. The Founder has established the Foundation by public deed dated [Date of Deed of Foundation] (the “Deed of Foundation”).
+
+B. In accordance with Article 3 of the Deed of Foundation, the Founder wishes to endow the Foundation with an initial capital and to transfer certain assets to it.
+
+C. The Foundation accepts the endowment and the transfer of assets under the terms set out below.
+
+NOW, THEREFORE, THE PARTIES AGREE AS FOLLOWS:
+
+Article 1 – Initial Endowment
+
+1.1 The Founder hereby endows the Foundation with an initial capital in the amount of CHF [amount in figures] ([amount in words] Swiss francs).
+
+1.2 The Founder further commits to transfer to the Foundation Bitcoin in the amount of approximately [amount] BTC (or such other amount as the Parties may agree in writing), to be held as part of the Foundation’s long-term treasury in accordance with the Deed of Foundation and the Foundation Regulations.
+
+Article 2 – Transfer of Assets
+
+2.1 The Founder hereby transfers to the Foundation, and the Foundation hereby accepts:
+   (a) The cash amount stated in Article 1.1, to be paid by bank transfer to an account designated by the Foundation within [X] business days of the registration of the Foundation; and
+   (b) The Bitcoin amount stated in Article 1.2, to be transferred to a multisig wallet address controlled by the Foundation as soon as practicable after the registration of the Foundation, in accordance with the treasury procedures set out in the Foundation Regulations.
+
+2.2 The Foundation acknowledges receipt of the initial cash endowment upon confirmation of the bank transfer and acknowledges the commitment to receive the Bitcoin endowment upon execution of the transfer.
+
+Article 3 – Purpose of the Endowment
+
+The assets transferred under this Agreement shall be used exclusively in accordance with the purpose of the Foundation as defined in Article 2 of the Deed of Foundation and subject to the treasury protection rules set out in the Foundation Regulations.
+
+Article 4 – Representations and Warranties
+
+4.1 The Founder represents and warrants that:
+   (a) They have full legal capacity and authority to enter into this Agreement and to transfer the assets described herein;
+   (b) The assets being transferred are free from any encumbrances, liens, or third-party rights that would prevent the Foundation from obtaining clear title; and
+   (c) The transfer does not violate any applicable law or contractual obligation binding on the Founder.
+
+4.2 The Foundation represents that it has been validly established and has the capacity to accept the assets transferred under this Agreement.
+
+Article 5 – Governing Law and Jurisdiction
+
+This Agreement shall be governed by and construed in accordance with Swiss law. Any dispute arising out of or in connection with this Agreement shall be subject to the exclusive jurisdiction of the courts of [City], Canton of [e.g. Zug], Switzerland.
+
+Article 6 – Final Provisions
+
+6.1 This Agreement constitutes the entire agreement between the Parties with respect to the subject matter hereof and supersedes all prior negotiations, representations, or agreements relating thereto.
+
+6.2 Any amendment to this Agreement shall be made in writing and signed by both Parties.
+
+6.3 If any provision of this Agreement is held to be invalid or unenforceable, the remaining provisions shall continue in full force and effect.
+
+IN WITNESS WHEREOF, the Parties have executed this Agreement as of the date first written above.
+
+THE FOUNDER:
+
+_______________________________
+[Full Name]
+Date: _________________________
+
+THE FOUNDATION:
+
+Century Metadata Stiftung
+
+_______________________________
+[Name], Chairperson of the Board
+Date: _________________________
+
+_______________________________
+[Name], Member of the Board
+Date: _________________________

@@ -1,0 +1,116 @@
+CENTURY METADATA STIFTUNG
+INITIAL BOARD RESOLUTIONS
+
+Date: [Date of first Board meeting after registration]
+Place: [City], Switzerland
+
+The Board of Trustees of Century Metadata Stiftung (the “Foundation”) met on the above date. The following resolutions were duly adopted:
+
+---
+
+RESOLUTION 1
+Adoption of the Foundation Regulations
+
+The Board hereby adopts the Foundation Regulations (Stiftungsreglement) dated [Date], as submitted to the Commercial Register, as the internal governance rules of the Foundation.
+
+The Board authorizes the Chairperson to sign and publish the Foundation Regulations.
+
+---
+
+RESOLUTION 2
+Confirmation of Board Composition and Election of Chairperson
+
+The Board confirms its current composition as follows:
+
+- [Name 1] – Chairperson
+- [Name 2] – Member
+- [Name 3] – Member
+- [Name 4] – Member (if applicable)
+
+[Name 1] is elected as Chairperson of the Board for a term of four (4) years, in accordance with the Foundation Regulations.
+
+---
+
+RESOLUTION 3
+Authorization to Open Bank Accounts and Manage Assets
+
+The Board authorizes the Chairperson, together with one other Board member, to:
+(a) Open and operate bank accounts in the name of the Foundation;
+(b) Execute all necessary documents for the transfer and custody of the Foundation’s initial cash endowment; and
+(c) Establish multisig wallet structures for the Foundation’s Bitcoin treasury in accordance with the Treasury Policy to be approved by the Board.
+
+Any two signatories from the authorized group may jointly represent the Foundation in financial matters.
+
+---
+
+RESOLUTION 4
+Approval of Initial Treasury Policy
+
+The Board approves the initial Treasury Policy (attached as Annex A), which sets forth rules for the custody, management, and expenditure of the Foundation’s Bitcoin holdings, including multisig requirements, geographic diversity of signers, and spending thresholds.
+
+The Board authorizes the Chairperson to implement the Treasury Policy and to engage necessary technical and legal advisors for its execution.
+
+---
+
+RESOLUTION 5
+Establishment of Technical Advisory Council
+
+The Board establishes a Technical Advisory Council in accordance with Article 4 of the Foundation Regulations.
+
+The following individuals are appointed as initial members of the Technical Advisory Council for a term of three (3) years:
+
+- [Name A] – Expert in Bitcoin protocol and cryptography
+- [Name B] – Expert in distributed systems and data availability
+- [Name C] – Expert in long-term digital preservation
+
+The Board may appoint additional members or replace existing members as needed.
+
+---
+
+RESOLUTION 6
+Adoption of Conflict of Interest Policy
+
+The Board adopts the Conflict of Interest Policy (attached as Annex B) and requires all Board members and members of the Technical Advisory Council to complete and sign a declaration of interests within 30 days.
+
+---
+
+RESOLUTION 7
+Authorization for Operational Setup
+
+The Board authorizes the Chairperson to:
+(a) Engage legal counsel and a notary for any remaining registration formalities;
+(b) Set up the Foundation’s initial administrative infrastructure (including secure communication channels and document storage);
+(c) Publish the Foundation’s website and initial transparency reports once operational; and
+(d) Begin outreach to potential independent storage and replication partners.
+
+---
+
+RESOLUTION 8
+Approval of First-Year Budget Outline
+
+The Board approves the high-level budget outline for the first twelve (12) months of operation (attached as Annex C), covering governance, legal, technical development, and initial replication incentives.
+
+Detailed budgets shall be approved by the Board on an annual basis.
+
+---
+
+RESOLUTION 9
+Next Meeting and General Authorization
+
+The next ordinary meeting of the Board shall be held within six (6) months. The Chairperson is authorized to convene extraordinary meetings as needed and to take all necessary actions to implement the above resolutions, subject to reporting to the full Board.
+
+---
+
+These resolutions were adopted unanimously / by qualified majority.
+
+_______________________________
+[Name], Chairperson
+Date: _________________________
+
+_______________________________
+[Name], Member
+Date: _________________________
+
+_______________________________
+[Name], Member
+Date: _________________________

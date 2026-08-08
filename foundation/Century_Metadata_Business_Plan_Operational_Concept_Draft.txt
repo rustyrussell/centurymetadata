@@ -1,0 +1,130 @@
+BUSINESS PLAN / OPERATIONAL CONCEPT
+
+Century Metadata Stiftung
+
+1. Executive Summary
+
+Century Metadata Stiftung is being established as a purpose-locked Swiss foundation to solve a critical long-term problem in the Bitcoin ecosystem: ensuring that small encrypted auxiliary cryptographic data remains reliably available for at least one hundred years.
+
+The foundation will maintain encrypted data blobs (primarily wallet descriptors and rights to tokenized assets) using open standards and a distributed, multi-backend architecture. Its primary role is coordination, standard-setting, and long-term incentive alignment rather than acting as a central data host.
+
+The foundation will be funded through an initial cash endowment and a substantial Bitcoin treasury. This treasury will serve as the main economic engine, funding operations, replication incentives, and security measures in a manner aligned with Bitcoin’s long-term interests.
+
+2. Background and Problem Statement
+
+Bitcoin users are increasingly adopting complex wallet setups (multisig, miniscript, output descriptors, and associated metadata) that cannot be fully recovered from a seed phrase alone. Without reliable access to this auxiliary data, even users who carefully preserve their seeds risk permanent loss of funds.
+
+Current solutions are inadequate for century-scale reliability:
+- Commercial cloud providers have no incentive to maintain data for 100 years.
+- Blockchain-based storage creates incentive misalignments and cost uncertainty.
+- Existing backup methods often fail when users adopt more sophisticated wallet architectures.
+
+The core challenge is therefore not technical storage capacity, but the creation of durable incentives, governance, and coordination mechanisms that can survive technological and organizational change over very long time horizons.
+
+3. Purpose and Long-Term Objectives
+
+The foundation’s sole and perpetual purpose is to ensure the long-term (minimum 100 years) storage and retrieval of small encrypted auxiliary cryptographic data.
+
+Strategic objectives:
+- Maintain and evolve open, future-proof technical standards for encrypted auxiliary data.
+- Ensure data remains retrievable even if individual networks or providers disappear.
+- Align economic incentives with Bitcoin’s long-term health through a Bitcoin-denominated treasury.
+- Promote transparency, open-source development, and distributed replication.
+- Minimize governance and single-point-of-failure risks through strong legal and technical safeguards.
+
+4. Operational Model
+
+The foundation will operate as a coordinator and economic anchor rather than a centralized storage provider. Its model is based on three layers:
+
+4.1 Standards and Interface Layer
+The foundation will publish and maintain open specifications for:
+- The encrypted blob format (including support for Bitcoin descriptors and tokenized asset manifests).
+- Registration and update protocols.
+- Retrieval interfaces.
+
+This allows any party to build compatible clients or storage services.
+
+4.2 Commitment and Discovery Layer
+The foundation will support multiple parallel backends for committing to and discovering data blobs, including:
+- Currently convenient platforms (e.g., the Liquid Network Bitcoin Sidechain for fast, confidential operations).
+- Long-term archival networks (e.g., Arweave-style permanent storage).
+- Minimal anchoring on Bitcoin where appropriate.
+- Future decentralized systems as they emerge.
+
+This multi-backend approach ensures resilience if any single network ceases to operate.
+
+4.3 Storage and Replication Layer
+Actual encrypted data will be stored through a distributed network of independent operators. The foundation will:
+- Incentivize replication through Lightning and ecash payments.
+- Use erasure coding and geographic distribution to reduce risk.
+- Maintain only the latest version of each blob (superseding older versions).
+
+5. Technical Architecture
+
+The system is designed around the following principles:
+- Latest-state only: Only the current version of each encrypted blob is actively maintained.
+- Privacy by design: Content remains encrypted; access patterns are protected through ecash and multi-server retrieval techniques.
+- Open standards: All specifications are public and implementable by third parties.
+- Backend agnosticism: The core interface is independent of any single storage or commitment technology.
+- Hybrid post-quantum cryptography: Encryption methods are chosen with long-term security in mind.
+
+6. Governance and Organization
+
+The foundation is governed by a Board of Trustees supported by a Technical Advisory Council of independent experts. Key governance features include:
+- Staggered board terms and qualified majority requirements.
+- Strong treasury protection rules (multisig with geographic diversity, spending thresholds, and on-chain proofs where feasible).
+- An immutable core purpose clause with extremely high amendment thresholds.
+- Mandatory transparency and open-source requirements.
+
+Detailed governance rules are set out in the Deed of Foundation and the Foundation Regulations.
+
+7. Financial Plan and Sustainability
+
+7.1 Initial Capitalization
+The foundation will be endowed with:
+- An initial cash amount of CHF [amount].
+- A substantial Bitcoin treasury transferred by the founder(s) and funder(s).
+
+7.2 Long-Term Funding Model
+The Bitcoin treasury is intended to serve as the primary long-term funding source. The foundation will manage this treasury conservatively with the goal of preserving real value over decades.
+
+Supplementary income will come from:
+- Modest one-time payments from users registering data.
+- Voluntary contributions from the Bitcoin community.
+
+The foundation will not rely on ongoing commercial revenue or speculative investment returns.
+
+7.3 Cost Structure
+Main cost categories:
+- Coordination and standard maintenance.
+- Incentives paid to independent storage and replication providers.
+- Security, audits, and infrastructure.
+- Governance, legal, and administrative costs.
+
+8. Risk Management
+
+Key risks and mitigation strategies:
+- Technological obsolescence: Addressed through open standards, multi-backend support, and focus on simple, future-readable formats.
+- Loss of Bitcoin treasury value: Mitigated by conservative management and focus on long-term preservation rather than growth.
+- Governance failure / mission drift: Prevented by immutable purpose clause, high amendment thresholds, staggered terms, and external technical oversight.
+- Single point of failure in storage: Avoided through distributed replication and backend diversity.
+- Regulatory or legal risk: Minimized by clear purpose limitation and transparent operations in a stable jurisdiction.
+
+9. Implementation Timeline (Indicative)
+
+Initial five-year commitment from principal:
+Phase 1 (Months 1–6): Legal formation, registration, and initial board appointment.
+Phase 2 (Months 6–18): Publication of technical specifications, development of reference client libraries, and establishment of initial replication partnerships.
+Phase 3 (Months 18–36): Operational launch of registration and retrieval services, expansion of replication network, and public transparency reporting.
+Phase 4 (Year 3+): Ongoing maintenance, standard evolution, treasury stewardship, and continuous improvement of resilience measures.
+
+10. Conclusion
+
+Century Metadata Stiftung is designed as a durable, purpose-locked institution capable of addressing a genuine long-term need in the Bitcoin ecosystem. By combining strong legal safeguards, open technical standards, distributed replication, and Bitcoin-aligned economic incentives, the foundation aims to provide reliable auxiliary data availability for at least one hundred years.
+
+The foundation’s role is not to replace existing or future technical solutions, but to act as a stable coordinator and economic backstop that increases the overall resilience of Bitcoin self-sovereignty infrastructure.
+
+Submitted by the Founder(s)
+
+[Name]
+Date: [Date]

@@ -1,0 +1,148 @@
+TREASURY POLICY
+
+Century Metadata Stiftung
+
+Version: 1.1
+Effective Date: [Date of Board Adoption]
+Last Reviewed: [Date]
+
+1. Purpose and Objectives
+
+1.1 This Treasury Policy establishes the rules, procedures, and controls governing the management of the Foundation’s Bitcoin treasury. The treasury constitutes the primary long-term endowment intended to fund the Foundation’s operations, data replication incentives, and security measures for a minimum period of one hundred (100) years.
+
+1.2 The objectives of this Policy are to:
+   (a) Preserve the real value of the Bitcoin treasury over the long term;
+   (b) Ensure that treasury assets are used exclusively in direct support of the Foundation’s immutable purpose;
+   (c) Minimize key management, operational, and counterparty risks through robust technical and procedural controls;
+   (d) Maintain geographic and jurisdictional diversification of control; and
+   (e) Provide transparency and accountability through defined reporting and audit requirements.
+
+2. Scope
+
+This Policy applies to all Bitcoin and Bitcoin-derived assets held by or on behalf of the Foundation, including cold storage multisig wallets, timelocked constructions, and operational hot/warm wallets.
+
+3. Governance and Oversight
+
+3.1 The Board of Trustees holds ultimate responsibility for treasury strategy and major decisions.
+
+3.2 Day-to-day treasury operations are delegated to designated signers and operational personnel, subject to the controls defined in this Policy and the Foundation Regulations.
+
+3.3 A Treasury Committee (comprising at least two Board members) shall review all expenditures above defined thresholds and oversee implementation of this Policy.
+
+4. Custody and Key Management
+
+4.1 General Principles
+All private keys shall be generated, stored, and used according to state-of-the-art operational security practices. No single individual shall ever possess unilateral control over a material portion of the treasury.
+
+4.2 Multisig Architecture
+The Foundation shall maintain the majority of its Bitcoin in m-of-n multisig constructions with the following baseline parameters:
+- Minimum configuration: 3-of-5 (or higher) for cold storage;
+- Geographic and jurisdictional diversity: Signers located in at least three distinct jurisdictions and time zones, with no more than two signers in the same country.
+
+4.3 Key Generation, Storage and Timelocks
+Keys shall be generated during documented ceremonies using air-gapped hardware. Seed material shall be stored offline with geographic separation. Where operationally appropriate, timelocked or covenant-based constructions shall be used to reduce reliance on continuous signer availability.
+
+5. Spending and Expenditure Controls
+
+5.1 Permitted Uses
+Treasury assets may only be used for operational costs, replication incentives, security measures, and reasonable governance expenses that directly serve the Purpose.
+
+5.2 Spending Thresholds
+
+- Expenditure Size of ≤ CHF 10,000 (or BTC equiv.) required approvals of two authorized signers with no additional requirements.
+- Expenditure Size of CHF 10,001 – 50,000 (or BTC equiv.) required approvals of the Treasury Committee + two signers with written justification.
+- Expenditure Size of > CHF 50,000 (or BTC equiv.) required approvals of a qualified majority of Board with on-chain proof of storage activity (where feasible) + written justification.
+
+5.3 PSBT-Based Disbursement Workflow
+
+All Bitcoin disbursements from multisig wallets shall be executed using Partially Signed Bitcoin Transactions (PSBTs) in accordance with BIP 174 and subsequent best practices.
+
+5.3.1 Initiation of Disbursement Rounds
+
+Disbursement rounds may be initiated by:
+- The designated Operations Lead (or equivalent operational role), or
+- The Treasury Committee upon request from operational staff.
+
+Initiation requires documented justification that the expenditure falls within permitted uses and approved thresholds. The initiator prepares a draft PSBT containing the proposed inputs, outputs, and fee rate.
+
+5.3.2 Secure Transfer of Partial PSBT Data
+
+Partial PSBTs shall be transferred between signers using secure, authenticated channels only:
+- Preferred method: End-to-end encrypted messaging (e.g., via a self-hosted Matrix server or similar authenticated channel with forward secrecy).
+- Secondary method: Air-gapped transfer using QR codes or physically delivered encrypted storage media for high-value transactions.
+- All PSBT files shall be signed or accompanied by a cryptographic hash to ensure integrity during transfer.
+
+Signers shall never transmit PSBT data over unencrypted email or public channels.
+
+5.3.3 Signing Process and Authority
+
+Each authorized signer independently:
+1. Verifies the PSBT contents against the documented justification and approved threshold.
+2. Reviews inputs, outputs, change addresses, and fee rate.
+3. Signs the PSBT using their hardware wallet in an air-gapped or secure environment.
+4. Returns only the partially signed PSBT (never exposing their private key).
+
+Final combination and broadcast of the fully signed transaction requires the minimum number of signatures defined by the multisig policy. No single signer may finalize or broadcast a transaction.
+
+5.3.4 Finalization and Broadcast
+
+Once sufficient signatures are collected, an authorized operator (or the Operations Lead) finalizes the PSBT and broadcasts the transaction. The final transaction ID and relevant details shall be logged and included in the next treasury report.
+
+5.4 Hot Wallet Operations and Receiving Addresses
+
+5.4.1 Address Generation for Receiving Funds
+
+The Foundation shall operate one or more hot/warm wallets to receive payments from users registering data via the public registration portal.
+
+- Receiving addresses for the public portal shall be generated using a BTCPay Server instance (self-hosted) integrated with the registration system.
+- BTCPay Server shall be configured to derive addresses from a dedicated hot wallet xpub (or multisig descriptor where supported).
+- All generated addresses shall be monitored for incoming payments with automatic invoice matching.
+
+5.4.2 Privacy-Preserving Receipt Handling
+
+To protect user privacy and reduce on-chain linkage, the following practices shall be applied to funds received in hot wallets:
+
+- Preference for Lightning and ecash: Where technically feasible, users shall be encouraged (and in some cases incentivized) to pay via Lightning Network or ecash rather than on-chain Bitcoin.
+- CoinJoin on on-chain receipts: On-chain payments received into hot wallets shall, when volume justifies it, be processed through CoinJoin (or equivalent privacy-enhancing mixing protocols) before being considered for further use or sweeping.
+- Regular sweeping to cold storage: Excess funds in hot wallets above a defined liquidity threshold (e.g., 30–60 days of projected operational needs) shall be swept to the main multisig cold storage wallet on a regular schedule (e.g., weekly or bi-weekly). Sweeps shall be executed as PSBTs following the disbursement workflow described in section 5.3.
+- Address reuse avoidance: BTCPay Server and hot wallet software shall be configured to generate fresh addresses for each invoice or deposit.
+
+5.4.3 Hot Wallet Security
+
+Hot wallets shall maintain only the minimum balance required for operational liquidity. Private keys for hot wallets shall be stored in hardware security modules or secure enclaves with strict access controls and audit logging. Hot wallet balances and transactions shall be included in regular treasury reporting.
+
+6. Risk Management and Security
+
+6.1 Operational Security
+All treasury operations shall follow documented procedures with dual control for high-value actions.
+
+6.2 Regular Security Reviews
+Independent security audits of custody architecture and hot wallet operations shall be conducted at least every two years.
+
+6.3 Incident Response
+A documented incident response plan covering key compromise, signer unavailability, and hot wallet incidents shall be maintained.
+
+7. Reporting and Auditing
+
+7.1 Quarterly treasury reports shall include holdings, major inflows/outflows, multisig configurations, and hot wallet activity summaries.
+
+7.2 An independent audit of treasury controls shall be commissioned annually.
+
+8. Amendment
+
+This Policy may be amended by qualified majority of the Board. Material changes affecting multisig thresholds, geographic diversity, or core spending controls require additional endorsement from the Technical Advisory Council.
+
+9. Related Documents
+
+This Policy is to be read in conjunction with the Deed of Foundation, Foundation Regulations, and Conflict of Interest Policy.
+
+Adopted by the Board of Trustees on [Date]
+
+_______________________________
+Chairperson
+
+_______________________________
+Member
+
+_______________________________
+Member

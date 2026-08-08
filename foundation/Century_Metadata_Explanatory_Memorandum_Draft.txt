@@ -1,0 +1,104 @@
+EXPLANATORY MEMORANDUM
+and
+Application for Registration
+
+Century Metadata Stiftung
+
+Submitted to:
+The Commercial Register of the Canton of [e.g. Zug]
+and
+The Supervisory Authority for Foundations [if applicable]
+
+Date: [Date]
+
+1. Introduction
+
+We, the undersigned founder(s), hereby apply for the registration of Century Metadata Stiftung as a foundation under Swiss law pursuant to Articles 80 et seq. of the Swiss Civil Code.
+
+The foundation is being established to address a specific, long-term need within the Bitcoin ecosystem: the reliable storage and retrieval of small encrypted auxiliary cryptographic data over a period of at least one hundred years.
+
+2. Background and Purpose
+
+In the Bitcoin network, users increasingly rely on complex wallet configurations (multisig setups, miniscript policies, output descriptors, and associated metadata) that cannot be fully recovered from a seed phrase alone. The loss or inaccessibility of this auxiliary data can result in the permanent loss of funds, even when the seed material is preserved.
+
+The foundation’s sole and perpetual purpose, as set out in Article 2 of the Deed of Foundation, is to ensure the long-term (minimum one hundred years) storage and retrieval of such small encrypted auxiliary cryptographic data. This includes wallet descriptors and rights to tokenized assets on Bitcoin and compatible systems.
+
+The foundation will achieve this by:
+- Maintaining open, versioned technical standards for the encrypted data format;
+- Coordinating a distributed network of independent storage providers;
+- Operating a transparent and incentive-aligned model funded primarily through a Bitcoin treasury; and
+- Ensuring that only the latest version of each data blob is actively maintained.
+
+3. Justification for the Foundation
+
+The core challenge in providing century-scale data availability is not primarily technical storage capacity, but the creation of durable incentives and governance structures. Experience has shown that commercial storage providers and general-purpose blockchains are poorly suited to this task due to misaligned incentives, cost uncertainty, and the risk of protocol or business changes over very long time horizons.
+
+A purpose-locked Swiss foundation offers a suitable institutional form because:
+- Swiss foundation law permits the founder to hard-code a narrow and perpetual purpose;
+- The legal structure provides strong asset protection and limits the ability of future boards to redirect resources;
+- Switzerland offers a stable, predictable, and respected jurisdiction for long-term philanthropic and public-interest institutions.
+
+4. Operational Model
+
+The foundation will maintain encrypted auxiliary data blobs using a hybrid, multi-backend architecture designed for resilience. Key features include:
+- Open technical standards allowing any party to implement compatible storage or retrieval services;
+- Support for multiple commitment and discovery layers so that the system does not depend on the continued existence of any single network;
+- Use of efficient batching mechanisms for updates, ensuring that only the latest version of each blob is retained;
+- Privacy-preserving retrieval methods that protect both the content of the data and access patterns;
+- Incentive mechanisms (including Lightning and ecash payments) to encourage independent operators to replicate and serve the data.
+
+The foundation will not itself become a single point of failure. Its primary role is to coordinate standards, manage the Bitcoin treasury, and ensure long-term economic sustainability rather than to act as the sole technical provider.
+
+5. Governance and Safeguards
+
+The foundation has been designed with strong internal safeguards to protect its purpose over time:
+
+- An immutable core purpose clause in the Deed of Foundation that can only be amended under extremely high thresholds.
+- Detailed treasury protection rules requiring multisig structures with geographically diverse signers and strict limits on the use of assets.
+- A Technical Advisory Council composed of independent experts to provide guidance on technical matters.
+- Staggered board terms and qualified majority requirements for key decisions.
+- Strict dissolution rules ensuring that assets and data replicas are transferred only to entities with an identical or narrower purpose.
+- Mandatory transparency obligations, including regular public reporting and the requirement that all client and server software remain open source.
+
+These measures are set out in the Deed of Foundation and the Foundation Regulations submitted together with this application.
+
+6. Financial Situation
+
+The foundation is being endowed with an initial capital of CHF [amount] in cash. In addition, the founder(s) intend to transfer a meaningful Bitcoin treasury to the foundation. This treasury will serve as the primary long-term funding source for operations, replication incentives, and security measures.
+
+The foundation does not intend to engage in commercial fundraising or speculative activities. Its financial model is based on prudent preservation of the initial endowment and Bitcoin treasury, combined with modest future inflows from users who choose to use the service for long-term data storage.
+
+7. Public Interest Character
+
+While the foundation primarily serves the Bitcoin community, its activities contribute to the broader public interest by supporting financial self-sovereignty, reducing the risk of permanent loss of digital assets, and promoting open technical standards. The foundation therefore seeks recognition as a tax-exempt foundation under Swiss law.
+
+8. Requested Actions
+
+We respectfully request that the Commercial Register of the Canton of [e.g. Zug] register Century Metadata Stiftung and that the competent supervisory authority grant the necessary approvals.
+
+We are prepared to provide any additional information or documentation that may be required.
+
+9. Enclosures
+
+The following documents are submitted together with this memorandum:
+- Deed of Foundation (Stiftungsurkunde) dated [date]
+- Foundation Regulations (Stiftungsreglement)
+- Declaration of Initial Endowment
+- [Any other required documents, e.g. proof of initial capital, founder identification]
+
+We thank you for your consideration and remain at your disposal for any questions.
+
+Yours faithfully,
+
+[Founder 1 Full Name]
+[Address]
+[Signature]
+
+[Founder 2 Full Name, if applicable]
+[Address]
+[Signature]
+
+Contact for this application:
+[Name]
+[Email]
+[Telephone]

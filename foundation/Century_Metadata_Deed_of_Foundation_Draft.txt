@@ -1,0 +1,95 @@
+DEED OF FOUNDATION
+of
+CENTURY METADATA STIFTUNG
+
+Preamble
+
+The undersigned founder(s),
+
+[Full legal name(s) of founder(s)],
+[Address(es)],
+
+hereby establish, by this public deed, a foundation under Swiss law in accordance with Articles 80 et seq. of the Swiss Civil Code.
+
+Article 1 – Name and Seat
+
+1.1 The name of the foundation is “Century Metadata Stiftung”.
+
+1.2 The seat of the foundation is in [City], Canton of [e.g. Zug], Switzerland.
+
+Article 2 – Purpose
+
+2.1 The sole and perpetual purpose of the foundation is to ensure the long-term storage and retrieval of small encrypted auxiliary cryptographic data for a minimum period of one hundred (100) years, with examples including, but not limited to, wallet descriptors and rights to tokenized assets on Bitcoin and compatible systems.
+
+2.2 The foundation shall pursue this purpose by maintaining open technical standards, coordinating the replication and availability of such data, prudently managing its assets, and employing such other means as directly serve the purpose.
+
+2.3 The purpose of the foundation as set forth in this Article 2 is immutable. Any amendment to this Article shall require the unanimous decision of the Board of Trustees together with the written ratification of an external technical advisory body designated in the Foundation Regulations, or such other mechanism as renders amendment practically impossible.
+
+Article 3 – Initial Assets and Endowment
+
+3.1 The foundation is endowed with an initial capital of CHF [amount in figures] ([amount in words] Swiss francs).
+
+3.2 The foundation may accept further contributions, including transfers of Bitcoin and other digital assets, to be held as a long-term treasury in accordance with Article 6.
+
+Article 4 – Organization
+
+4.1 The supreme governing body of the foundation is the Board of Trustees (Stiftungsrat).
+
+4.2 The Board shall consist of at least three (3) members. The number, appointment, term of office, and removal of Board members shall be regulated in the Foundation Regulations.
+
+4.3 The Board may establish a Technical Advisory Council to provide independent advice on technical and protocol matters. The composition, role, and powers of the Technical Advisory Council shall be set out in the Foundation Regulations.
+
+Article 5 – Powers and Duties of the Board
+
+5.1 The Board shall manage the foundation in accordance with the law, this Deed, and the Foundation Regulations, and shall ensure that the purpose of the foundation is pursued diligently and sustainably.
+
+5.2 The Board shall adopt Foundation Regulations containing detailed provisions on the organization and administration of the foundation.
+
+Article 6 – Treasury and Asset Management
+
+6.1 The foundation’s assets, including any Bitcoin holdings, may only be used for defined operational, replication, security, and administrative expenditures that directly serve the purpose of the foundation.
+
+6.2 A meaningful portion of the foundation’s Bitcoin treasury shall be held in multisig or timelocked structures with signers who are geographically and jurisdictionally diverse.
+
+6.3 Any expenditure exceeding thresholds to be defined in the Foundation Regulations, or any use of assets for purposes other than those directly serving the foundation’s purpose, shall require additional approvals or on-chain proofs of continued storage provision as specified in the Foundation Regulations.
+
+Article 7 – Transparency, Reporting and Open Source
+
+7.1 The foundation shall issue regular public reports on its treasury status, storage proofs (including challenges or Merkle proofs where applicable), uptime metrics, and operational activities.
+
+7.2 All client and server software developed or maintained by or on behalf of the foundation shall be published under an open source license.
+
+Article 8 – Dissolution
+
+8.1 The foundation may be dissolved only for reasons provided by law or if its purpose can no longer be fulfilled.
+
+8.2 In the event of dissolution, the remaining assets and all replicas of the encrypted auxiliary data shall be transferred to one or more legal entities whose purpose is identical or narrower than that of the foundation. The encrypted auxiliary data itself may not be destroyed or repurposed.
+
+Article 9 – Amendment of the Deed
+
+9.1 Amendments to Articles 2 (Purpose), 6 (Treasury and Asset Management), and 8 (Dissolution) shall be subject to the extremely high threshold set out in Article 2.3 and are otherwise effectively immutable.
+
+9.2 Amendments to other provisions of this Deed shall require a decision of the Board taken with a qualified majority as defined in the Foundation Regulations, together with such additional ratification as the Board may determine.
+
+Article 10 – Final Provisions
+
+10.1 This Deed shall be governed by Swiss law.
+
+10.2 The foundation shall be registered in the Commercial Register of the Canton of [e.g. Zug].
+
+10.3 Any matters not regulated by this Deed shall be governed by the Foundation Regulations and, subsidiarily, by Swiss law.
+
+Done at [Place], on [Date]
+
+The Founder(s):
+
+_______________________________
+[Name]
+
+_______________________________
+[Name]
+
+Certified by the Notary Public:
+
+_______________________________
+[Name and seal of Swiss notary]
