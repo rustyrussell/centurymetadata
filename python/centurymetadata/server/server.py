@@ -361,6 +361,16 @@ def listbundles() -> None:
     success(ctype='application/json', msg=json.dumps(result))
 
 
+def fetchdepth() -> None:
+    """GET /api/v1/fetchdepth -> {"depth": N} (max leading hex digits of READER_ID used in current bundle/dir names)."""
+    depth = 0
+    for d in (d for d in os.listdir(BASEDIR) if is_range_name(d)):
+        depth = max(depth, len(d.split('-')[0]))
+        for b in (b for b in os.listdir(os.path.join(BASEDIR, d)) if is_range_name(b)):
+            depth = max(depth, len(b.split('-')[0]))
+    success(ctype='application/json', msg=json.dumps({"depth": depth or 2}))
+
+
 def assemble_bundle(bundle_path: str) -> bytes:
     """Pack records from a bundle dir into 1024 × DATA_LENGTH bytes, sorted by
     reader_id, with empty slots zero-padded.  Each record file is exactly
@@ -428,7 +438,8 @@ def fetchxor(directory: str) -> None:
 handlers: Any = {'authorize': ("POST", authorize, 3),
                  'update': ("POST", update, 0),
                  'listbundles': ("GET", listbundles, 0),
-                 'fetchxor': ("POST", fetchxor, 1)}
+                 'fetchxor': ("POST", fetchxor, 1),
+                 'fetchdepth': ("GET", fetchdepth, 0)}
 
 req = os.getenv("PATH_INFO")
 reqmethod = os.getenv("REQUEST_METHOD")
